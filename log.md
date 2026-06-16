@@ -91,3 +91,11 @@ src/index.ts, src/doctor.ts, src/install.ts, src/status.ts, bin/omo-sci.ts, pack
 - bun test: 17/17 通过 (含 2 个新增校验测试)
 - bun run typecheck: 通过
 - 污染配置已清除
+
+## 2026-06-16 17:45 — Task 1: 项目脚手架 ✅
+- 创建 bunfig.toml (Bun test preload)
+- 创建 README.md
+- 创建 tests/setup.ts
+- package.json 增加 jsonc-parser 依赖 + test:watch 脚本
+- typecheck ✅, bun test 17/17 ✅
+- 提交: ab8cc60
