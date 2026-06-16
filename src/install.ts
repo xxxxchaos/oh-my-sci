@@ -22,35 +22,34 @@ export interface InstallOptions {
   quota: number;
 }
 
-// ====== 安装函数 ======
+// ====================================================================
+// Config Generator
+// ====================================================================
 
 /**
- * 执行安装流程
+ * 根据用户选择的 providers 和 quota 生成完整 OmoSciConfig
  *
- * @param options 安装选项
- * @param [installConfig] 可选安装配置
- * @param [installConfig.configDir] 配置目录（默认 ~/.config/opencode/omo-sci）
- * @param [installConfig.projectDir] 项目目录（默认 process.cwd()）
- * @returns 写入的配置文件路径
+ * @param providers 提供商 ID 列表
+ * @param quota 月配额（token 数）
+ * @param [disableTui] 是否跳过交互模式输出
+ * @returns 完整的 OmoSciConfig 对象
  * @throws {Error} 校验失败时抛出
  */
-export async function install(
-  options: InstallOptions,
-  installConfig?: { configDir?: string; projectDir?: string },
-): Promise<string> {
+export function generateConfig(
+  providers: ProviderId[],
+  quota: number,
+  disableTui?: boolean,
+): OmoSciConfig {
   // ====== 输入校验 ======
 
-  // providers 非空验证
-  if (!options.providers || options.providers.length === 0) {
+  if (!providers || providers.length === 0) {
     throw new Error(
       "providers 不能为空。至少需要配置一个 API 提供商。支持的提供商: " +
         PROVIDER_WHITELIST.join(", "),
     );
   }
 
-  // provider whitelist 检查
-  const typedProviders = options.providers as ProviderId[];
-  for (const provider of typedProviders) {
+  for (const provider of providers) {
     if (!PROVIDER_WHITELIST.includes(provider)) {
       throw new Error(
         `不支持的提供商: "${provider}"。支持的提供商列表: ${PROVIDER_WHITELIST.join(", ")}`,
@@ -58,26 +57,21 @@ export async function install(
     }
   }
 
-  // quota 校验（必须在允许的枚举值范围内）
-  if (
-    !VALID_QUOTAS.includes(options.quota as (typeof VALID_QUOTAS)[number])
-  ) {
+  if (!VALID_QUOTAS.includes(quota as (typeof VALID_QUOTAS)[number])) {
     throw new Error(
-      `无效的 quota: ${options.quota}。允许的配额值: ${VALID_QUOTAS.join(", ")}`,
+      `无效的 quota: ${quota}。允许的配额值: ${VALID_QUOTAS.join(", ")}`,
     );
   }
 
   // ====== 构建配置 ======
 
-  if (!options.noTui) {
+  if (!disableTui) {
     console.log("交互式 TUI 模式（待实现）");
     console.log("使用 --no-tui 可跳过交互，直接写入配置");
   }
 
-  // 根据 providers 获取可用模型列表
-  const availableModels = getAvailableModels(typedProviders);
+  const availableModels = getAvailableModels(providers);
 
-  // 构建分类路由的 fallback_chain（所有类别共享同一模型列表）
   const catIds: CapabilityCategory[] = [
     'agent-orchestration', 'deep-reasoning', 'chinese-writing',
     'fast-search', 'long-context', 'methodical-review',
@@ -91,14 +85,14 @@ export async function install(
     };
   }
 
-  const config: OmoSciConfig = {
+  return {
     router: {
       categories,
       concurrency: { max_total_agents: 8 },
     },
     safety: { max_step: 50, max_time_minutes: 30, loop_detect_threshold: 5 },
     usage: {
-      token_quota: options.quota,
+      token_quota: quota,
       current_usage: 0,
       quota_reset_date: new Date().toISOString().slice(0, 7) + '-01',
     },
@@ -120,6 +114,28 @@ export async function install(
     },
     installed_at: new Date().toISOString(),
   };
+}
+
+// ====== 安装函数 ======
+
+/**
+ * 执行安装流程
+ *
+ * 调用 generateConfig() 生成配置，然后写入文件系统。
+ *
+ * @param options 安装选项
+ * @param [installConfig] 可选安装配置
+ * @param [installConfig.configDir] 配置目录（默认 ~/.config/opencode/omo-sci）
+ * @param [installConfig.projectDir] 项目目录（默认 process.cwd()）
+ * @returns 写入的配置文件路径
+ * @throws {Error} 校验失败时抛出
+ */
+export async function install(
+  options: InstallOptions,
+  installConfig?: { configDir?: string; projectDir?: string },
+): Promise<string> {
+  // 使用 generateConfig 生成配置（包含输入校验）
+  const config = generateConfig(options.providers as ProviderId[], options.quota, options.noTui);
 
   // ====== 路径解析 ======
 

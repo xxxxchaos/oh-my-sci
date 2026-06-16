@@ -11,6 +11,8 @@
 import { runDoctor, formatDoctorReport, formatDoctorReportJson } from "../src/doctor";
 import { install } from "../src/install";
 import { getStatus, formatStatus } from "../src/status";
+import { formatUsageBar, getUsageInfo } from "../src/commands/sci-usage";
+import { sciStart } from "../src/commands/sci-start";
 
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
@@ -32,6 +34,14 @@ async function main(): Promise<void> {
     }
     case "status": {
       await handleStatus();
+      break;
+    }
+    case "usage": {
+      handleUsage();
+      break;
+    }
+    case "start": {
+      handleStart();
       break;
     }
     default: {
@@ -73,6 +83,15 @@ async function handleDoctor(args: string[]): Promise<void> {
 async function handleStatus(): Promise<void> {
   const status = await getStatus();
   console.log(formatStatus(status));
+}
+
+function handleUsage(): void {
+  const usage = getUsageInfo();
+  console.log(formatUsageBar(usage));
+}
+
+function handleStart(): void {
+  console.log(sciStart());
 }
 
 interface InstallArgs {
@@ -133,6 +152,8 @@ omo-sci — 医学科研 AI 智能体团队
   omo-sci install [选项]    安装 omo-sci 插件
   omo-sci doctor [选项]     环境诊断
   omo-sci status            查看配置状态
+  omo-sci usage             查看用量信息
+  omo-sci start             启动 Dubin 研究引擎
   omo-sci --help            显示此帮助
 
 install 选项:
@@ -148,6 +169,8 @@ doctor 选项:
   omo-sci doctor
   omo-sci doctor --json
   omo-sci status
+  omo-sci usage
+  omo-sci start
 `);
 }
 
