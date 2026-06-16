@@ -99,3 +99,42 @@ src/index.ts, src/doctor.ts, src/install.ts, src/status.ts, bin/omo-sci.ts, pack
 - package.json 增加 jsonc-parser 依赖 + test:watch 脚本
 - typecheck ✅, bun test 17/17 ✅
 - 提交: ab8cc60
+
+## 2026-06-16 18:00 — Task 2: Shared types ✅
+- 创建 src/types.ts (376行)
+- 含所有 Agent/Category/Pipeline/State/Hook/Router/Config 类型
+- DataLabel, GateReport, SignoffRecord, ClaimEvidenceMap 与设计文档一致
+- MaterialPassport layout 支持 'omo-sci' | 'codexsci-legacy'
+- typecheck ✅, bun test 17/17 ✅
+- 提交: 5d3053a
+
+## 2026-06-16 18:15 — Task 3: Constants and config loader ✅
+- 创建 src/constants.ts, src/config.ts
+- 创建 tests/config.test.ts (3 tests)
+- 修复 types.ts 中的 Config 接口以匹配
+- typecheck ✅, bun test 21/21 ✅
+- 提交: 7d6ca16
+
+## 2026-06-16 18:30 — Task 4: Category router ✅
+- 创建 src/router/provider.ts, categories.ts, fallback.ts
+- 创建 tests/router/ (3 test files)
+- types.ts 补全 ProviderId (zhipu, kimi, tencent-hy, opencode-go)
+- typecheck ✅, bun test 35/35 ✅ (7 test files)
+
+## 2026-06-16 18:45 — Task 5: Material Passport state system ✅
+- 创建 src/state/passport.ts — DEFAULT_PASSPORT, load/save, updateStageState, validatePassportPreconditions, computeStageHash
+- 创建 src/state/boulder.ts — createBoulder, load/save, addPendingTask, updateTaskStatus
+- 创建 tests/state/passport.test.ts (22 tests), tests/state/boulder.test.ts (14 tests)
+- Gate-i/Gate-ii 映射到 GateReport 类型
+- typecheck ✅, bun test 71/71 ✅
+
+## 2026-06-16 19:30 — Codex Task 5 审查修复 ✅
+### 修复内容
+- P1-1: computeStageHash 替换为递归 stableStringify，+4 碰撞测试
+- P1-2: 统一配置路径为 .config/opencode/omo-sci.jsonc，install() 生成完整 OmoSciConfig
+- P1-3: PROVIDER_WHITELIST 从 PROVIDER_REGISTRY 派生，删除硬编码
+- P1-4: 新增 validatePassportSchema()，loadPassport 加载后自动验证
+- P2-5: OpenCode 集成文档措辞修正为"推测形态，runtime 待验收"
+
+### 测试: typecheck ✅, bun test 82/82 ✅
+### 提交: d6f5704 (12 files, +308/-89)
