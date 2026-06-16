@@ -74,3 +74,20 @@ src/index.ts, src/doctor.ts, src/install.ts, src/status.ts, bin/omo-sci.ts, pack
 - `bun test` ✅ 17/17 通过（新增 2 个校验测试）
 - 污染配置已清除
 
+
+## 2026-06-16 17:15 — Codex 审查修复 ✅
+
+### 阻断问题修复
+1. Install 测试隔离: install() 增加可选 installConfig 参数，测试用临时目录
+2. OpenCode runtime 注册: install() 写入 opencode.json { "plugin": ["omo-sci"] }
+3. Plugin tool 注册: 改用 JSDoc + any，记录裸对象替代形态
+
+### 高优先级修复
+4. Dubin agent 补 7 条医学安全 IRON RULES
+5. Doctor R 未安装改为 warn
+6. install() 内部增加 provider whitelist + quota 验证
+
+### 测试
+- bun test: 17/17 通过 (含 2 个新增校验测试)
+- bun run typecheck: 通过
+- 污染配置已清除
