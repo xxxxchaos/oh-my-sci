@@ -91,6 +91,85 @@ export const MyPlugin: Plugin = async (ctx) => {
 
 **本项目的选择：方案 1（见下文「冻结的集成形态」）**
 
+### 已验证的 tool 注册替代形态
+
+由于不能 import `tool()` helper，本项目使用**裸对象形态**注册工具：
+
+```typescript
+// src/index.ts — 已验证的 tool 注册方式
+export const OmoSciPlugin = async (ctx) => {
+  return {
+    tool: {
+      "sci-doctor": {
+        description: "工具描述文字",
+        async execute(args, context) {
+          // 执行逻辑
+          return "结果"
+        },
+      },
+    },
+  }
+}
+```
+
+**形态差异**：
+| 官方形态 (不可用) | 本项目替代形态 (已验证) |
+|---|---|
+| `tool({ description, args, execute })` | 裸对象 `{ description, execute }` |
+| `tool.schema.string()` 参数定义 | 无参数定义，不使用 `args` schema |
+| `Plugin` 类型标注 | JSDoc 注释描述接口 |
+| `import { tool } from "@opencode-ai/plugin"` | 无外部依赖 |
+
+**验证状态**：该形态在 typecheck 和 test 中通过，但需在 OpenCode runtime 中真实验证。
+
+## OpenCode 运行时注册策略
+
+### 三个注册要素
+
+OpenCode 需要以下三个要素才能识别 omo-sci：
+
+| 要素 | 注册方式 | 文件 |
+|---|---|---|
+| 插件 (plugin) | `opencode.json` 中 `plugin: ["omo-sci"]` | 项目根目录 `opencode.json` |
+| 命令 (command) | `.opencode/commands/*.md` 文件声明 | `sci-doctor.md`, `sci-status.md` |
+| Agent | `.opencode/agents/*.md` 文件声明 | `dubin.md` |
+
+### `opencode.json` 写入策略
+
+`omo-sci install` 会在项目根目录写入 `opencode.json`：
+
+```json
+{
+  "plugin": ["omo-sci"]
+}
+```
+
+**注意事项**：
+- 如果项目已有 `opencode.json`（例如同时安装了多个 OpenCode 插件），`install()` 当前会覆盖该文件
+- 后续需要支持合并读取已有 `opencode.json` 的 plugin 数组
+- 全局 `~/.config/opencode/opencode.json` 同样可以注册插件，但本项目优先使用项目级配置
+
+### 验证命令
+
+安装后，可用以下命令验证集成是否生效：
+
+```bash
+# 验证 dubin agent 是否可被 OpenCode 识别
+opencode agent list | grep dubin
+
+# 验证 sci-doctor 命令是否可被 OpenCode 识别
+opencode command list | grep sci-doctor
+
+# 验证 sci-status 命令是否可被 OpenCode 识别
+opencode command list | grep sci-status
+```
+
+### 已知限制
+
+- OpenCode runtime 对 `opencode.json` 中 `plugin` 数组的加载机制依赖 npm 包名解析，需要 `omo-sci` 包在 npm 上可访问，或通过本地路径加载
+- 当前未在 OpenCode runtime 中完全验证插件加载 + tool 注册 + agent 识别的端到端流程
+- 命令通过 `.opencode/commands/*.md` 文件声明，需要 OpenCode 在启动时扫描这些文件
+
 ## 自定义命令
 
 ### 定义方式（二选一）

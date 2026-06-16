@@ -112,7 +112,7 @@ async function checkConfigDir(): Promise<HealthCheck> {
     if (await Bun.file(configPath).exists()) {
       return { name: "配置", status: "ok", message: `${configPath} 已存在` };
     }
-    return { name: "配置", status: "ok", message: `未配置（运行 install）` };
+    return { name: "配置", status: "warn", message: `未配置（运行 omo-sci install）` };
   } catch {
     return { name: "配置", status: "warn", message: `无法检查配置状态` };
   }
@@ -124,11 +124,11 @@ async function checkR(): Promise<HealthCheck> {
     const stdout = proc.stdout.toString().trim();
     if (proc.exitCode === 0 && stdout) {
       const firstLine = stdout.split("\n")[0] || stdout;
-      return { name: "R", status: "ok", message: firstLine };
+      return { name: "R", status: "ok", message: `${firstLine}（满足阶段 2 需求）` };
     }
-    return { name: "R", status: "ok", message: "R 未安装（可选的，阶段 2 需要）" };
+    return { name: "R", status: "warn", message: "R 未安装（阶段 2 数据分析需要 R >= 4.3）" };
   } catch {
-    return { name: "R", status: "ok", message: "R 未安装（可选的，阶段 2 需要）" };
+    return { name: "R", status: "warn", message: "R 未安装（阶段 2 数据分析需要 R >= 4.3）" };
   }
 }
 

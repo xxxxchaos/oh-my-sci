@@ -5,7 +5,24 @@
  * 同时也创建 .opencode/ 目录中的命令和 agent 配置。
  */
 
-import { getConfigDir, getConfigPath } from "./doctor";
+import * as path from "node:path";
+import { getConfigDir as getDefaultConfigDir } from "./doctor";
+
+// ====== 校验常量 ======
+
+export const PROVIDER_WHITELIST = [
+  "deepseek",
+  "qwen-bailian",
+  "glm",
+  "minimax",
+  "openai",
+  "anthropic",
+  "google",
+] as const;
+
+export const VALID_QUOTAS = [200000000, 500000000, 1000000000] as const;
+
+// ====== 类型定义 ======
 
 export interface InstallOptions {
   noTui: boolean;
@@ -30,13 +47,56 @@ const DEFAULT_MODEL_MAPPING: Record<string, string[]> = {
   "methodical-review": ["deepseek/deepseek-v4-pro", "qwen/qwen-3.7-max"],
 };
 
+// ====== 安装函数 ======
+
 /**
  * 执行安装流程
  *
  * @param options 安装选项
+ * @param [installConfig] 可选安装配置
+ * @param [installConfig.configDir] 配置目录（默认 ~/.config/opencode/omo-sci）
+ * @param [installConfig.projectDir] 项目目录（默认 process.cwd()）
  * @returns 写入的配置文件路径
+ * @throws {Error} 校验失败时抛出
  */
-export async function install(options: InstallOptions): Promise<string> {
+export async function install(
+  options: InstallOptions,
+  installConfig?: { configDir?: string; projectDir?: string },
+): Promise<string> {
+  // ====== 输入校验 ======
+
+  // providers 非空验证
+  if (!options.providers || options.providers.length === 0) {
+    throw new Error(
+      "providers 不能为空。至少需要配置一个 API 提供商。支持的提供商: " +
+        PROVIDER_WHITELIST.join(", "),
+    );
+  }
+
+  // provider whitelist 检查
+  for (const provider of options.providers) {
+    if (
+      !PROVIDER_WHITELIST.includes(
+        provider as (typeof PROVIDER_WHITELIST)[number],
+      )
+    ) {
+      throw new Error(
+        `不支持的提供商: "${provider}"。支持的提供商列表: ${PROVIDER_WHITELIST.join(", ")}`,
+      );
+    }
+  }
+
+  // quota 校验（必须在允许的枚举值范围内）
+  if (
+    !VALID_QUOTAS.includes(options.quota as (typeof VALID_QUOTAS)[number])
+  ) {
+    throw new Error(
+      `无效的 quota: ${options.quota}。允许的配额值: ${VALID_QUOTAS.join(", ")}`,
+    );
+  }
+
+  // ====== 构建配置 ======
+
   const config: OmoSciConfig = {
     providers: options.providers,
     quota: options.quota,
@@ -49,22 +109,25 @@ export async function install(options: InstallOptions): Promise<string> {
     console.log("使用 --no-tui 可跳过交互，直接写入配置");
   }
 
-  const configDir = getConfigDir();
-  const configPath = getConfigPath();
+  // ====== 路径解析 ======
 
-  // 创建配置目录
+  const configDir = installConfig?.configDir ?? getDefaultConfigDir();
+  const projectDir = installConfig?.projectDir ?? process.cwd();
+  const configPath = path.join(configDir, "omo-sci.jsonc");
+
+  // ====== 写入 JSONC 配置 ======
+
   const fs = await import("fs");
   fs.mkdirSync(configDir, { recursive: true });
 
-  // 写入 JSONC 配置
   const jsoncContent = generateConfigJsonc(config);
-  Bun.write(configPath, jsoncContent);
+  await Bun.write(configPath, jsoncContent);
 
-  // 同时创建 .opencode 配置目录
-  const cwd = process.cwd();
-  const opencodeDir = `${cwd}/.opencode`;
-  const commandsDir = `${opencodeDir}/commands`;
-  const agentsDir = `${opencodeDir}/agents`;
+  // ====== 写入 .opencode 目录文件 ======
+
+  const opencodeDir = path.join(projectDir, ".opencode");
+  const commandsDir = path.join(opencodeDir, "commands");
+  const agentsDir = path.join(opencodeDir, "agents");
 
   fs.mkdirSync(commandsDir, { recursive: true });
   fs.mkdirSync(agentsDir, { recursive: true });
@@ -84,8 +147,7 @@ export async function install(options: InstallOptions): Promise<string> {
     "",
     "用中文解释每项检查结果的含义，给出修复建议（如有错误或警告）。",
   ].join("\n");
-
-  Bun.write(`${commandsDir}/sci-doctor.md`, doctorCommandContent);
+  await Bun.write(path.join(commandsDir, "sci-doctor.md"), doctorCommandContent);
 
   // 写入 sci-status 命令
   const statusCommandContent = [
@@ -100,8 +162,7 @@ export async function install(options: InstallOptions): Promise<string> {
     "bun run bin/omo-sci.ts status",
     "```",
   ].join("\n");
-
-  Bun.write(`${commandsDir}/sci-status.md`, statusCommandContent);
+  await Bun.write(path.join(commandsDir, "sci-status.md"), statusCommandContent);
 
   // 写入 dubin agent 配置
   const dubinAgentContent = [
@@ -144,9 +205,23 @@ export async function install(options: InstallOptions): Promise<string> {
     "3. 委派合适的子 agent 执行专项任务",
     "4. 每阶段结束前请用户确认进展",
     "5. 生成研究产物并写入项目目录",
+    "",
+    "## 医学安全边界 (IRON RULES)",
+    "",
+    '1. **不编造文献**: 每条证据必须附来源类型对应的可验证ID（PMID/DOI/CNKI ID/NCT ID/指南URL）。不确定的文献标注“待验证”。',
+    '2. **非临床医嘱**: 你是科研辅助工具，不提供临床诊疗建议。所有统计分析结果仅供研究参考，临床决策由医生独立判断。',
+    '3. **避免 PHI/PII**: 严禁在 prompt 或输出中暴露患者姓名、住院号、身份证号、电话、完整日期等直接标识符。发现疑似直接标识符时应提醒用户脱敏。',
+    '4. **IRB 提醒**: 研究方案涉及伦理审查时提醒用户提交 IRB 批准，不声称等同伦理批准。',
+    '5. **SEALED 数据规则**: 数据标签为 SEALED 时，不得读取数据内容；待用户在 Stage 2 入口解封后才可访问。',
+    '6. **先问清再产出**: 收到新研究请求时，先理解研究问题、确认框架，再委派子agent。不在未确认方向的情况下产出研究方案。',
+    '7. **阶段确认**: 每个阶段结束后展示摘要，等待用户签核才进入下一阶段。不自动跨阶段跳转。',
   ].join("\n");
+  await Bun.write(path.join(agentsDir, "dubin.md"), dubinAgentContent);
 
-  Bun.write(`${agentsDir}/dubin.md`, dubinAgentContent);
+  // ====== 写入 opencode.json（OpenCode 注册）======
+  const opencodeJsonPath = path.join(projectDir, "opencode.json");
+  const opencodeJsonContent = JSON.stringify({ plugin: ["omo-sci"] }, null, 2) + "\n";
+  await Bun.write(opencodeJsonPath, opencodeJsonContent);
 
   return configPath;
 }
