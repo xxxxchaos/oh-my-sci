@@ -42,7 +42,7 @@ export const AGENT_CATEGORY: Record<AgentName, CapabilityCategory> = {
   polisher: 'chinese-writing',
 } as const;
 
-/** 7 个模型提供商 */
+/** 模型提供商 */
 export type ProviderId =
   | 'deepseek'
   | 'qwen-bailian'
@@ -50,7 +50,11 @@ export type ProviderId =
   | 'minimax'
   | 'openai'
   | 'anthropic'
-  | 'google';
+  | 'google'
+  | 'zhipu'
+  | 'kimi'
+  | 'tencent-hy'
+  | 'opencode-go';
 
 // ====================================================================
 // Pipeline Types
