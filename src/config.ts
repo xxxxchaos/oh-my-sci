@@ -67,7 +67,7 @@ export function loadConfig(configPath?: string): OmoSciConfig {
   const path = configPath ?? OMO_SCI_CONFIG_PATH;
 
   if (!existsSync(path)) {
-    return { ...DEFAULT_CONFIG };
+    return structuredClone(DEFAULT_CONFIG);
   }
 
   try {
@@ -75,12 +75,12 @@ export function loadConfig(configPath?: string): OmoSciConfig {
     const parsed = parse(content);
 
     if (parsed === undefined) {
-      return { ...DEFAULT_CONFIG };
+      return structuredClone(DEFAULT_CONFIG);
     }
 
-    return deepMerge(DEFAULT_CONFIG, parsed as Partial<OmoSciConfig>);
+    return deepMerge(structuredClone(DEFAULT_CONFIG), parsed as Partial<OmoSciConfig>);
   } catch {
-    return { ...DEFAULT_CONFIG };
+    return structuredClone(DEFAULT_CONFIG);
   }
 }
 

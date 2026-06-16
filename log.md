@@ -138,3 +138,13 @@ src/index.ts, src/doctor.ts, src/install.ts, src/status.ts, bin/omo-sci.ts, pack
 
 ### 测试: typecheck ✅, bun test 82/82 ✅
 ### 提交: d6f5704 (12 files, +308/-89)
+
+## 2026-06-16 19:50 — Task 6: Hook registry ✅
+- 创建 src/hooks/registry.ts, tests/hooks/registry.test.ts (5 tests)
+- 提交: 968c953
+
+## 2026-06-16 20:10 — Task 7-8: 全部 22 个钩子 ✅
+- 创建 src/hooks/session.ts, stage.ts, delegation.ts, model.ts, quality.ts, review.ts, user.ts
+- 创建 tests/hooks/session.test.ts (4 tests)
+- typecheck ✅, bun test 91/91 ✅
+- 提交: 90e70e5
