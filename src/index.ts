@@ -19,6 +19,69 @@ import './hooks/index.ts';
 import { runDoctor, formatDoctorReport } from "./doctor";
 
 /**
+ * AGENT_MANIFEST — omo-sci 智能体注册清单
+ *
+ * 供 OpenCode 加载时识别所有可用 agent 及其元信息。
+ * 每个 agent 对应 .opencode/agents/<name>.md 中的定义。
+ */
+export const AGENT_MANIFEST = [
+  {
+    name: 'dubin',
+    type: 'primary' as const,
+    category: 'agent-orchestration' as const,
+    promptFile: './agents/dubin',
+  },
+  {
+    name: 'archimedes',
+    type: 'sub' as const,
+    category: 'deep-reasoning' as const,
+    promptFile: './agents/archimedes',
+  },
+  {
+    name: 'irber',
+    type: 'sub' as const,
+    category: 'quality-review' as const,
+    promptFile: './agents/irber',
+  },
+  {
+    name: 'pubmeder',
+    type: 'sub' as const,
+    category: 'search' as const,
+    promptFile: './agents/pubmeder',
+  },
+  {
+    name: 'spsser',
+    type: 'sub' as const,
+    category: 'data-analysis' as const,
+    promptFile: './agents/spsser',
+  },
+  {
+    name: 'writer',
+    type: 'sub' as const,
+    category: 'writing' as const,
+    promptFile: './agents/writer',
+  },
+  {
+    name: 'submitter',
+    type: 'sub' as const,
+    category: 'task-coordination' as const,
+    promptFile: './agents/submitter',
+  },
+  {
+    name: 'ebmer',
+    type: 'sub' as const,
+    category: 'methodology-review' as const,
+    promptFile: './agents/ebmer',
+  },
+  {
+    name: 'polisher',
+    type: 'sub' as const,
+    category: 'logic-review' as const,
+    promptFile: './agents/polisher',
+  },
+];
+
+/**
  * OmoSciPlugin — OpenCode 插件入口函数
  *
  * 注册 `sci-doctor` 自定义工具，供 agent 调用环境诊断。
