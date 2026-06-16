@@ -63,10 +63,16 @@ async function handleInstall(args: string[]): Promise<void> {
   console.log("正在安装 omo-sci...");
   console.log(`  提供商: ${options.providers.join(", ")}`);
   console.log(`  月配额: ${(options.quota / 100000000).toFixed(1)} 亿 tokens`);
+  if (options.configDir) console.log(`  配置目录: ${options.configDir}`);
+  if (options.projectDir) console.log(`  项目目录: ${options.projectDir}`);
   console.log(`  TUI: ${options.noTui ? "禁用" : "启用"}`);
   console.log("");
 
-  const configPath = await install(options);
+  const installConfig: { configDir?: string; projectDir?: string } = {};
+  if (options.configDir) installConfig.configDir = options.configDir;
+  if (options.projectDir) installConfig.projectDir = options.projectDir;
+
+  const configPath = await install(options, installConfig);
   console.log(`安装完成。配置文件: ${configPath}`);
 }
 
@@ -116,12 +122,16 @@ interface InstallArgs {
   noTui: boolean;
   providers: string[];
   quota: number;
+  configDir?: string;
+  projectDir?: string;
 }
 
 function parseInstallArgs(args: string[]): InstallArgs {
   let noTui = false;
   let providers: string[] = [];
   let quota = 500000000;
+  let configDir: string | undefined;
+  let projectDir: string | undefined;
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
@@ -146,6 +156,12 @@ function parseInstallArgs(args: string[]): InstallArgs {
           }
         }
         break;
+      case "--config-dir":
+        if (i + 1 < args.length) configDir = args[++i];
+        break;
+      case "--project-dir":
+        if (i + 1 < args.length) projectDir = args[++i];
+        break;
       default:
         if (arg.startsWith("--")) {
           console.error(`未知选项: ${arg}`);
@@ -159,7 +175,7 @@ function parseInstallArgs(args: string[]): InstallArgs {
     process.exit(1);
   }
 
-  return { noTui, providers, quota };
+  return { noTui, providers, quota, configDir, projectDir };
 }
 
 function showHelp(): void {
@@ -179,6 +195,8 @@ install 选项:
   --no-tui                    跳过交互式界面
   --providers <list>          提供商列表（逗号分隔），例如: deepseek,qwen-bailian
   --quota <number>            月配额（tokens），例如: 500000000
+  --config-dir <path>         配置输出目录（默认 ~/.config/opencode）
+  --project-dir <path>        项目目录（默认当前目录）
 
 doctor 选项:
   --json, -j                  JSON 格式输出
@@ -188,6 +206,7 @@ status 选项:
 
 示例:
   omo-sci install --providers deepseek,qwen-bailian --quota 500000000
+  omo-sci install --no-tui --providers deepseek --quota 200000000 --project-dir /tmp/test
   omo-sci doctor
   omo-sci doctor --json
   omo-sci status
