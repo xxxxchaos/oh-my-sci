@@ -215,6 +215,111 @@ describe("install", () => {
     ).rejects.toThrow("不支持的提供商");
   });
 
+  it("fresh install 复制全部 9 个 agent 文件", async () => {
+    tmpDir = mkdtempSync(join(tmpdir(), "omo-sci-test-"));
+
+    await install(
+      {
+        noTui: true,
+        providers: ["deepseek"],
+        quota: 200000000,
+      },
+      { configDir: tmpDir, projectDir: tmpDir },
+    );
+
+    const agentDir = join(tmpDir, ".opencode", "agents");
+    const agentFiles = [
+      "dubin.md", "archimedes.md", "irber.md", "pubmeder.md",
+      "spsser.md", "writer.md", "submitter.md", "ebmer.md", "polisher.md",
+    ];
+    for (const f of agentFiles) {
+      const filePath = join(agentDir, f);
+      const exists = await Bun.file(filePath).exists();
+      expect(exists).toBe(true);
+    }
+  });
+
+  it("fresh install 复制全部 4 个 command 文件", async () => {
+    tmpDir = mkdtempSync(join(tmpdir(), "omo-sci-test-"));
+
+    await install(
+      {
+        noTui: true,
+        providers: ["deepseek"],
+        quota: 200000000,
+      },
+      { configDir: tmpDir, projectDir: tmpDir },
+    );
+
+    const cmdDir = join(tmpDir, ".opencode", "commands");
+    const cmdFiles = ["sci-start.md", "sci-status.md", "sci-usage.md", "sci-doctor.md"];
+    for (const f of cmdFiles) {
+      const filePath = join(cmdDir, f);
+      const exists = await Bun.file(filePath).exists();
+      expect(exists).toBe(true);
+    }
+  });
+
+  it("fresh install dubin.md 不是短版 stub（> 200 char, 含 IRON RULES）", async () => {
+    tmpDir = mkdtempSync(join(tmpdir(), "omo-sci-test-"));
+
+    await install(
+      {
+        noTui: true,
+        providers: ["deepseek"],
+        quota: 200000000,
+      },
+      { configDir: tmpDir, projectDir: tmpDir },
+    );
+
+    const dubinPath = join(tmpDir, ".opencode", "agents", "dubin.md");
+    const content = await Bun.file(dubinPath).text();
+    expect(content.length).toBeGreaterThan(200);
+    expect(content).toContain("IRON RULES");
+  });
+
+  it("fresh install 子 agent frontmatter mode 为 subagent", async () => {
+    tmpDir = mkdtempSync(join(tmpdir(), "omo-sci-test-"));
+
+    await install(
+      {
+        noTui: true,
+        providers: ["deepseek"],
+        quota: 200000000,
+      },
+      { configDir: tmpDir, projectDir: tmpDir },
+    );
+
+    const subAgents = ["archimedes", "irber", "pubmeder", "spsser", "writer", "submitter", "ebmer", "polisher"];
+    for (const name of subAgents) {
+      const content = await Bun.file(join(tmpDir, ".opencode", "agents", `${name}.md`)).text();
+      expect(content).toContain("mode: subagent");
+    }
+  });
+
+  it("fresh install 不含 stub 占位文本", async () => {
+    tmpDir = mkdtempSync(join(tmpdir(), "omo-sci-test-"));
+
+    await install(
+      {
+        noTui: true,
+        providers: ["deepseek"],
+        quota: 200000000,
+      },
+      { configDir: tmpDir, projectDir: tmpDir },
+    );
+
+    const agentDir = join(tmpDir, ".opencode", "agents");
+    const agentFiles = await Array.fromAsync(
+      new Bun.Glob("*.md").scan({ cwd: agentDir, absolute: true }),
+    );
+    for (const f of agentFiles) {
+      if (f.endsWith("dubin.md")) continue; // dubin is primary, may contain different text
+      const content = await Bun.file(f).text();
+      expect(content).not.toContain("完整提示词见");
+    }
+  });
+
   it("should reject invalid quota", async () => {
     tmpDir = mkdtempSync(join(tmpdir(), "omo-sci-test-"));
 

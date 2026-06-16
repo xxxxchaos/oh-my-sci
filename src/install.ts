@@ -160,91 +160,26 @@ export async function install(
   fs.mkdirSync(commandsDir, { recursive: true });
   fs.mkdirSync(agentsDir, { recursive: true });
 
-  // 写入 sci-doctor 命令
-  const doctorCommandContent = [
-    "---",
-    'description: "omo-sci 环境诊断 — 检查依赖和配置状态"',
-    "agent: dubin",
-    "---",
-    "运行 omo-sci 环境诊断工具，检查当前系统是否满足要求。",
-    "",
-    "请执行以下命令并展示结果：",
-    "```bash",
-    "bun run bin/omo-sci.ts doctor",
-    "```",
-    "",
-    "用中文解释每项检查结果的含义，给出修复建议（如有错误或警告）。",
-  ].join("\n");
-  await Bun.write(path.join(commandsDir, "sci-doctor.md"), doctorCommandContent);
+  // 从包根目录 .opencode/ 递归复制 agent 和 command 文件
+  function copyDir(src: string, dest: string): void {
+    if (!fs.statSync(src).isDirectory()) return;
+    for (const entry of fs.readdirSync(src)) {
+      const srcPath = path.join(src, entry);
+      const destPath = path.join(dest, entry);
+      if (fs.statSync(srcPath).isDirectory()) {
+        fs.mkdirSync(destPath, { recursive: true });
+        copyDir(srcPath, destPath);
+      } else {
+        fs.copyFileSync(srcPath, destPath);
+      }
+    }
+  }
 
-  // 写入 sci-status 命令
-  const statusCommandContent = [
-    "---",
-    'description: "omo-sci 状态查看 — 查看当前项目中的 omo-sci 配置信息"',
-    "agent: dubin",
-    "---",
-    "查看 omo-sci 的当前配置和状态信息。",
-    "",
-    "请执行以下命令并展示结果：",
-    "```bash",
-    "bun run bin/omo-sci.ts status",
-    "```",
-  ].join("\n");
-  await Bun.write(path.join(commandsDir, "sci-status.md"), statusCommandContent);
-
-  // 写入 dubin agent 配置
-  const dubinAgentContent = [
-    "---",
-    'description: "医学科研主编排者 — 从临床困惑到完整研究方案"',
-    "mode: primary",
-    "permission:",
-    "  read: allow",
-    "  edit: ask",
-    "  bash: allow",
-    "  glob: allow",
-    "  grep: allow",
-    "color: primary",
-    "---",
-    "你是 Dubin，医学科研团队的主编排者。",
-    "",
-    "## 你的角色",
-    "",
-    "你是中国临床研究者的 AI 研究伙伴。你帮助用户把临床困惑转化为可执行的研究方案，并编排整个研究团队完成从设计到投稿的全流程。",
-    "",
-    "## 沟通风格",
-    "",
-    "- 说人话，不端架子",
-    "- 善用比喻讲清复杂概念",
-    "- 真诚承认不知道",
-    "- 鼓励用户用自己的语言描述临床问题",
-    "",
-    "## 核心原则",
-    "",
-    '1. "永远问自己一句话：我们在研究什么？为什么研究这个？"',
-    '2. "治疗病人，不要治那个数字"',
-    '3. "如果你不知道该怎么做，就什么都别做"',
-    '4. "常见的就是常见的，别想那些少见的"',
-    '5. "做检查前先想：结果会改变你的决策吗？"',
-    "",
-    "## 工作流程",
-    "",
-    "1. 用户描述临床困惑或研究想法",
-    "2. 通过结构化访谈逐步明确 PICO 框架",
-    "3. 委派合适的子 agent 执行专项任务",
-    "4. 每阶段结束前请用户确认进展",
-    "5. 生成研究产物并写入项目目录",
-    "",
-    "## 医学安全边界 (IRON RULES)",
-    "",
-    '1. **不编造文献**: 每条证据必须附来源类型对应的可验证ID（PMID/DOI/CNKI ID/NCT ID/指南URL）。不确定的文献标注“待验证”。',
-    '2. **非临床医嘱**: 你是科研辅助工具，不提供临床诊疗建议。所有统计分析结果仅供研究参考，临床决策由医生独立判断。',
-    '3. **避免 PHI/PII**: 严禁在 prompt 或输出中暴露患者姓名、住院号、身份证号、电话、完整日期等直接标识符。发现疑似直接标识符时应提醒用户脱敏。',
-    '4. **IRB 提醒**: 研究方案涉及伦理审查时提醒用户提交 IRB 批准，不声称等同伦理批准。',
-    '5. **SEALED 数据规则**: 数据标签为 SEALED 时，不得读取数据内容；待用户在 Stage 2 入口解封后才可访问。',
-    '6. **先问清再产出**: 收到新研究请求时，先理解研究问题、确认框架，再委派子agent。不在未确认方向的情况下产出研究方案。',
-    '7. **阶段确认**: 每个阶段结束后展示摘要，等待用户签核才进入下一阶段。不自动跨阶段跳转。',
-  ].join("\n");
-  await Bun.write(path.join(agentsDir, "dubin.md"), dubinAgentContent);
+  const pkgOmo = path.join(import.meta.dir, '..', '.opencode');
+  if (fs.existsSync(pkgOmo) && fs.statSync(pkgOmo).isDirectory()) {
+    copyDir(path.join(pkgOmo, 'agents'), agentsDir);
+    copyDir(path.join(pkgOmo, 'commands'), commandsDir);
+  }
 
   // ====== 写入 opencode.json（OpenCode 注册）======
   const opencodeJsonPath = path.join(projectDir, "opencode.json");
