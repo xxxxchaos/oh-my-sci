@@ -22,11 +22,28 @@ export interface DelegationTask {
 }
 
 // ====================================================================
+// Internal — 防碰撞计数器
+// ====================================================================
+
+let taskSequenceCounter = 0;
+
+/** 生成全局唯一的任务 ID */
+function generateTaskId(agent: AgentName): string {
+  const ts = Date.now();
+  const rand = Math.random().toString(36).slice(2, 8);
+  const seq = (++taskSequenceCounter) % 100000;
+  return `${agent}-${ts}-${rand}-${seq}`;
+}
+
+// ====================================================================
 // Factory
 // ====================================================================
 
 /**
  * 创建委派任务
+ *
+ * 任务 ID 由 agent 名、毫秒时间戳、随机字符串和递增计数器组成，
+ * 确保同一 agent 在同一毫秒内创建多个任务时 ID 不会碰撞。
  *
  * @param agent  目标子 agent 名称
  * @param task   具体任务描述
@@ -37,7 +54,7 @@ export function createDelegationTask(
   task: string,
   context: string,
 ): DelegationTask {
-  return { id: `${agent}-${Date.now()}`, agent, task, context };
+  return { id: generateTaskId(agent), agent, task, context };
 }
 
 // ====================================================================

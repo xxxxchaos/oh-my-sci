@@ -155,15 +155,19 @@ describe('usage-tracker', () => {
     });
 
     it('不传 configPath 时使用默认路径（测试不污染真实 config）', () => {
-      // 仅验证默认行为不抛出，不验证真实文件写入
+      tmpDir = mkdtempSync(join(tmpdir(), 'usage-tracker-'));
+      const configPath = join(tmpDir, 'test-config.jsonc');
+      writeFileSync(configPath, buildMinimalConfig(0), 'utf-8');
+
+      // 验证指定临时路径时正常记录
       const result = recordUsage({
         timestamp: '2026-06-16T00:00:00Z',
         agent: 'dubin',
         stage: 'stage-0-intake',
         input_tokens: 10,
         output_tokens: 5,
-      });
-      expect(result.currentUsage).toBeGreaterThan(0);
+      }, configPath);
+      expect(result.currentUsage).toBe(15);
     });
   });
 

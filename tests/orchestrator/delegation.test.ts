@@ -40,6 +40,16 @@ describe('delegation', () => {
       };
       expect(task.modelHint).toBe('deepseek-chat');
     });
+
+    it('同一 agent 连续创建 100 个任务的 ID 全部唯一（防碰撞）', () => {
+      const ids = new Set<string>();
+      for (let i = 0; i < 100; i++) {
+        const task = createDelegationTask('pubmeder', `任务 ${i}`, '上下文');
+        expect(ids.has(task.id)).toBe(false);
+        ids.add(task.id);
+      }
+      expect(ids.size).toBe(100);
+    });
   });
 
   describe('extractAgentContext', () => {
