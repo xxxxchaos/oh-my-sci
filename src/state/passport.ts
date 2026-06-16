@@ -99,10 +99,42 @@ export const DEFAULT_PASSPORT: MaterialPassport = {
 // ====================================================================
 
 /**
+ * 验证 MaterialPassport schema 完整性
+ *
+ * 检查必要字段是否存在且类型正确。
+ * 返回 { valid, errors }，errors 列出所有缺失或无效的字段。
+ */
+export function validatePassportSchema(data: unknown): { valid: boolean; errors: string[] } {
+  const errors: string[] = [];
+  if (!data || typeof data !== 'object') {
+    return { valid: false, errors: ['passport is not an object'] };
+  }
+  const p = data as Record<string, unknown>;
+
+  if (!p.passport_version) errors.push('missing passport_version');
+  if (!p.project || typeof p.project !== 'object') errors.push('missing or invalid project');
+  else {
+    const proj = p.project as Record<string, unknown>;
+    if (!proj.layout || !['omo-sci', 'codexsci-legacy'].includes(proj.layout as string))
+      errors.push('project.layout must be "omo-sci" or "codexsci-legacy"');
+  }
+  if (!p.pipeline || typeof p.pipeline !== 'object') errors.push('missing pipeline');
+  else {
+    const pipe = p.pipeline as Record<string, unknown>;
+    if (!pipe.current_stage) errors.push('missing pipeline.current_stage');
+  }
+  if (!Array.isArray(p.signoff_records)) errors.push('signoff_records must be an array');
+  if (!Array.isArray(p.review_sessions)) errors.push('review_sessions must be an array');
+
+  return { valid: errors.length === 0, errors };
+}
+
+/**
  * 加载 MaterialPassport
  *
  * 文件不存在时返回 DEFAULT_PASSPORT。每次重新构造默认值，
  * 确保调用方修改返回值不影响后续调用。
+ * 加载后执行 schema 验证，验证结果写入 metadata（不 throw，允许恢复模式）。
  */
 export function loadPassport(projectDir: string): MaterialPassport {
   const fpath = passportFilePath(projectDir);
@@ -111,7 +143,16 @@ export function loadPassport(projectDir: string): MaterialPassport {
     return JSON.parse(JSON.stringify(DEFAULT_PASSPORT)) as MaterialPassport;
   }
   const raw = readFileSync(fpath, 'utf-8');
-  return JSON.parse(raw) as MaterialPassport;
+  const parsed = JSON.parse(raw) as MaterialPassport;
+
+  // Schema 验证（不 throw，允许恢复模式）
+  const validation = validatePassportSchema(parsed);
+  if (!validation.valid) {
+    // 将验证结果写入内部 metadata（不污染 passport 字段）
+    (parsed as unknown as Record<string, unknown>)['__schema_warnings'] = validation.errors;
+  }
+
+  return parsed;
 }
 
 /**
@@ -265,11 +306,26 @@ export function validatePassportPreconditions(
 // ====================================================================
 
 /**
- * 对 StageState block 做 JSON 规范化后计算 sha256
+ * 递归稳定的 JSON 序列化（按 key 排序）
+ */
+function stableStringify(obj: unknown): string {
+  if (obj === null) return 'null';
+  if (typeof obj !== 'object') return JSON.stringify(obj);
+  if (Array.isArray(obj)) {
+    return '[' + obj.map(stableStringify).join(',') + ']';
+  }
+  // Object: 递归按键排序
+  const keys = Object.keys(obj as Record<string, unknown>).sort();
+  const pairs = keys.map(k => JSON.stringify(k) + ':' + stableStringify((obj as Record<string, unknown>)[k]));
+  return '{' + pairs.join(',') + '}';
+}
+
+/**
+ * 对 StageState block 做稳定序列化后计算 sha256
  *
- * 先按 key 排序序列化，保证相同内容的 stage 产生相同 hash。
+ * 递归按 key 排序序列化，保证相同内容的 stage 产生相同 hash。
  */
 export function computeStageHash(stage: StageState): string {
-  const normalized = JSON.stringify(stage, Object.keys(stage).sort());
-  return createHash('sha256').update(normalized, 'utf-8').digest('hex');
+  const canonical = stableStringify(stage);
+  return createHash('sha256').update(canonical, 'utf-8').digest('hex');
 }

@@ -15,15 +15,6 @@ export const OPENCODE_CONFIG_DIR = join(homedir(), '.config', 'opencode');
 /** ~/.config/opencode/omo-sci.jsonc — 用户配置文件路径 */
 export const OMO_SCI_CONFIG_PATH = join(OPENCODE_CONFIG_DIR, 'omo-sci.jsonc');
 
-/** ~/.config/opencode/omo-sci */
-export const OMO_SCI_DIR = join(OPENCODE_CONFIG_DIR, 'omo-sci');
-
-/** ~/.config/opencode/omo-sci/profile */
-export const OMO_SCI_PROFILE_DIR = join(OMO_SCI_DIR, 'profile');
-
-/** ~/.config/opencode/omo-sci/projects */
-export const OMO_SCI_PROJECTS_DIR = join(OMO_SCI_DIR, 'projects');
-
 /** 默认完整配置 */
 export const DEFAULT_CONFIG: OmoSciConfig = {
   router: {

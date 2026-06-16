@@ -132,15 +132,16 @@ async function checkR(): Promise<HealthCheck> {
   }
 }
 
+import { OMO_SCI_CONFIG_PATH, OPENCODE_CONFIG_DIR } from "./constants";
+
 /** 获取 omo-sci 配置目录 */
 export function getConfigDir(): string {
-  const home = process.env.HOME || "~";
-  return `${home}/.config/opencode/omo-sci`;
+  return OPENCODE_CONFIG_DIR;
 }
 
 /** 获取 omo-sci 配置文件路径 */
 export function getConfigPath(): string {
-  return `${getConfigDir()}/omo-sci.jsonc`;
+  return OMO_SCI_CONFIG_PATH;
 }
 
 /** 格式化 doctor 报告为控制台输出 */

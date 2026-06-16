@@ -6,6 +6,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { install } from "../src/install";
+import { loadConfig } from "../src/config";
 
 describe("install", () => {
   let tmpDir: string;
@@ -15,6 +16,10 @@ describe("install", () => {
       rmSync(tmpDir, { recursive: true, force: true });
     }
   });
+
+  function configPathFromDir(dir: string): string {
+    return join(dir, "omo-sci.jsonc");
+  }
 
   it("should write config with given options", async () => {
     tmpDir = mkdtempSync(join(tmpdir(), "omo-sci-test-"));
@@ -38,9 +43,16 @@ describe("install", () => {
     expect(exists).toBe(true);
 
     const content = await configFile.text();
-    expect(content).toContain("deepseek");
-    expect(content).toContain("qwen-bailian");
+    // New config shape: provider model IDs in fallback_chain
+    expect(content).toContain("deepseek-v4-pro");
+    expect(content).toContain("qwen3.7-max");
+    // quota appears as usage.token_quota
     expect(content).toContain("200000000");
+    // Should contain router/safety/usage/environment sections
+    expect(content).toContain('"router"');
+    expect(content).toContain('"safety"');
+    expect(content).toContain('"usage"');
+    expect(content).toContain('"environment"');
   });
 
   it("should write config with single provider", async () => {
@@ -57,8 +69,36 @@ describe("install", () => {
 
     const configFile = Bun.file(configPath);
     const content = await configFile.text();
-    expect(content).toContain("deepseek");
+    expect(content).toContain("deepseek-v4-pro");
     expect(content).toContain("500000000");
+  });
+
+  it("安装后 loadConfig() 能读到有效路由配置", async () => {
+    tmpDir = mkdtempSync(join(tmpdir(), "omo-sci-test-"));
+
+    await install(
+      {
+        noTui: true,
+        providers: ["deepseek", "minimax"],
+        quota: 500000000,
+      },
+      { configDir: tmpDir, projectDir: tmpDir },
+    );
+
+    // 使用 loadConfig 读取刚刚写入的配置
+    const config = loadConfig(configPathFromDir(tmpDir));
+    expect(config.router).toBeDefined();
+    expect(config.router.categories).toBeDefined();
+    // 所有 6 个 category 都有 fallback_chain
+    const entries = Object.entries(config.router.categories);
+    for (const [, catCfg] of entries) {
+      expect(catCfg.fallback_chain.length).toBeGreaterThan(0);
+    }
+    // quota 正确写入
+    expect(config.usage.token_quota).toBe(500000000);
+    // safety/environment 有默认值
+    expect(config.safety.max_step).toBe(50);
+    expect(config.environment.software).toContain('R');
   });
 
   it("should create .opencode command files", async () => {

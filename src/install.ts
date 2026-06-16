@@ -6,19 +6,11 @@
  */
 
 import * as path from "node:path";
-import { getConfigDir as getDefaultConfigDir } from "./doctor";
+import { OMO_SCI_CONFIG_PATH, OPENCODE_CONFIG_DIR } from "./constants";
+import type { OmoSciConfig, ProviderId, CapabilityCategory } from "./types";
+import { PROVIDER_WHITELIST, getAvailableModels } from "./router/provider";
 
 // ====== 校验常量 ======
-
-export const PROVIDER_WHITELIST = [
-  "deepseek",
-  "qwen-bailian",
-  "glm",
-  "minimax",
-  "openai",
-  "anthropic",
-  "google",
-] as const;
 
 export const VALID_QUOTAS = [200000000, 500000000, 1000000000] as const;
 
@@ -29,23 +21,6 @@ export interface InstallOptions {
   providers: string[];
   quota: number;
 }
-
-export interface OmoSciConfig {
-  $schema?: string;
-  providers: string[];
-  quota: number;
-  modelMapping: Record<string, string[]>;
-  installedAt: string;
-}
-
-const DEFAULT_MODEL_MAPPING: Record<string, string[]> = {
-  "agent-orchestration": ["qwen/qwen-3.7-max", "deepseek/deepseek-v4-pro"],
-  "deep-reasoning": ["deepseek/deepseek-v4-pro", "qwen/qwen-3.7-max"],
-  "chinese-writing": ["glm/glm-5.2", "qwen/qwen-3.7-max"],
-  "fast-search": ["minimax/minimax-m3"],
-  "long-context": ["minimax/minimax-m3", "glm/glm-5.2"],
-  "methodical-review": ["deepseek/deepseek-v4-pro", "qwen/qwen-3.7-max"],
-};
 
 // ====== 安装函数 ======
 
@@ -74,12 +49,9 @@ export async function install(
   }
 
   // provider whitelist 检查
-  for (const provider of options.providers) {
-    if (
-      !PROVIDER_WHITELIST.includes(
-        provider as (typeof PROVIDER_WHITELIST)[number],
-      )
-    ) {
+  const typedProviders = options.providers as ProviderId[];
+  for (const provider of typedProviders) {
+    if (!PROVIDER_WHITELIST.includes(provider)) {
       throw new Error(
         `不支持的提供商: "${provider}"。支持的提供商列表: ${PROVIDER_WHITELIST.join(", ")}`,
       );
@@ -97,21 +69,61 @@ export async function install(
 
   // ====== 构建配置 ======
 
-  const config: OmoSciConfig = {
-    providers: options.providers,
-    quota: options.quota,
-    modelMapping: DEFAULT_MODEL_MAPPING,
-    installedAt: new Date().toISOString(),
-  };
-
   if (!options.noTui) {
     console.log("交互式 TUI 模式（待实现）");
     console.log("使用 --no-tui 可跳过交互，直接写入配置");
   }
 
+  // 根据 providers 获取可用模型列表
+  const availableModels = getAvailableModels(typedProviders);
+
+  // 构建分类路由的 fallback_chain（所有类别共享同一模型列表）
+  const catIds: CapabilityCategory[] = [
+    'agent-orchestration', 'deep-reasoning', 'chinese-writing',
+    'fast-search', 'long-context', 'methodical-review',
+  ];
+  const categories = {} as Record<CapabilityCategory, OmoSciConfig['router']['categories'][CapabilityCategory]>;
+  for (const cat of catIds) {
+    categories[cat] = {
+      category: cat,
+      fallback_chain: availableModels,
+      concurrency_limit: cat === 'fast-search' ? 4 : 2,
+    };
+  }
+
+  const config: OmoSciConfig = {
+    router: {
+      categories,
+      concurrency: { max_total_agents: 8 },
+    },
+    safety: { max_step: 50, max_time_minutes: 30, loop_detect_threshold: 5 },
+    usage: {
+      token_quota: options.quota,
+      current_usage: 0,
+      quota_reset_date: new Date().toISOString().slice(0, 7) + '-01',
+    },
+    environment: {
+      mcp_required: [
+        'unified_search',
+        'search_cnki',
+        'search_cochrane_reviews',
+        'web_search_exa',
+        'Consensus__search',
+        'officecli',
+      ],
+      mcp_optional: ['zotero_search_items', 'browser_navigate'],
+      r_packages: [
+        'tableone', 'gtsummary', 'finalfit', 'survival', 'coxme',
+        'rms', 'MatchIt', 'WeightIt', 'mice', 'flowchart', 'ggplot2', 'patchwork',
+      ],
+      software: ['R', 'Pandoc', 'Git', 'PlotCase'],
+    },
+    installed_at: new Date().toISOString(),
+  };
+
   // ====== 路径解析 ======
 
-  const configDir = installConfig?.configDir ?? getDefaultConfigDir();
+  const configDir = installConfig?.configDir ?? OPENCODE_CONFIG_DIR;
   const projectDir = installConfig?.projectDir ?? process.cwd();
   const configPath = path.join(configDir, "omo-sci.jsonc");
 
@@ -233,14 +245,10 @@ export async function install(
  * 这样 stripJsoncComments() 总能还原为有效的 JSON。
  */
 function generateConfigJsonc(config: OmoSciConfig): string {
-  // 构建完整的数据对象
-  // 注意：command 和 agent 定义已改为 .opencode/ 文件方式
+  // 构建完整的数据对象，附带额外字段用于信息展示
   const fullConfig: Record<string, unknown> = {
+    ...config,
     $schema: "https://opencode.ai/config.json",
-    providers: config.providers,
-    quota: config.quota,
-    modelMapping: config.modelMapping,
-    installedAt: config.installedAt,
     plugin: ["omo-sci"],
   };
 
@@ -259,10 +267,10 @@ function generateConfigJsonc(config: OmoSciConfig): string {
   let i = 1; // 跳过第 0 行 "{"
 
   const commentMap: Array<{ key: string; comment: string }> = [
-    { key: '"providers"', comment: "已注册的模型 API 提供商" },
-    { key: '"quota"', comment: "月配额（token 数）" },
-    { key: '"modelMapping"', comment: "能力分类 → 模型 fallback 链" },
-    { key: '"installedAt"', comment: "安装时间" },
+    { key: '"router"', comment: "分类路由配置——各能力分类的模型 fallback 链" },
+    { key: '"safety"', comment: "安全机制配置——熔断器和循环检测" },
+    { key: '"usage"', comment: "用量监控——月配额和当前使用量" },
+    { key: '"environment"', comment: "环境就绪检查——必需 MCP 工具和软件" },
     {
       key: '"plugin"',
       comment:

@@ -51,3 +51,6 @@ export const PROVIDER_REGISTRY: Partial<Record<ProviderId, {
 export function getAvailableModels(providerIds: ProviderId[]): ModelSpec[] {
   return providerIds.flatMap(id => PROVIDER_REGISTRY[id]?.models ?? []);
 }
+
+/** 从 PROVIDER_REGISTRY keys 派生的可用提供商列表 */
+export const PROVIDER_WHITELIST = Object.keys(PROVIDER_REGISTRY) as ProviderId[];

@@ -358,10 +358,12 @@ export interface EnvironmentConfig {
 /**
  * omo-sci 完整配置
  *
- * 写入 ~/.config/opencode/omo-sci/omo-sci.jsonc，安装时生成。
+ * 写入 ~/.config/opencode/omo-sci.jsonc，安装时生成。
  */
 export interface OmoSciConfig {
   $schema?: string;
+  /** 安装时间（仅用于信息展示） */
+  installed_at?: string;
   /** 分类路由配置 */
   router: RouterConfig;
   /** 禁用的 agent 列表 */

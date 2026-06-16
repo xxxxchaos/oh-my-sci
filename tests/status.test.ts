@@ -38,12 +38,21 @@ describe("formatStatus", () => {
       installed: true,
       configPath: "/tmp/.config/opencode/omo-sci/omo-sci.jsonc",
       config: {
-        providers: ["deepseek"],
-        quota: 500000000,
-        modelMapping: {
-          "deep-reasoning": ["deepseek/deepseek-v4-pro"],
+        router: {
+          categories: {
+            'agent-orchestration': { category: 'agent-orchestration', fallback_chain: [], concurrency_limit: 2 },
+            'deep-reasoning': { category: 'deep-reasoning', fallback_chain: [{ provider: 'deepseek', model_id: 'deepseek-v4-pro', context_window: 1_000_000, max_output: 128_000 }], concurrency_limit: 2 },
+            'chinese-writing': { category: 'chinese-writing', fallback_chain: [], concurrency_limit: 2 },
+            'fast-search': { category: 'fast-search', fallback_chain: [], concurrency_limit: 4 },
+            'long-context': { category: 'long-context', fallback_chain: [], concurrency_limit: 2 },
+            'methodical-review': { category: 'methodical-review', fallback_chain: [], concurrency_limit: 2 },
+          },
+          concurrency: { max_total_agents: 8 },
         },
-        installedAt: "2026-06-16T00:00:00.000Z",
+        safety: { max_step: 50, max_time_minutes: 30, loop_detect_threshold: 5 },
+        usage: { token_quota: 500000000, current_usage: 0, quota_reset_date: '2026-06-01' },
+        environment: { mcp_required: [], mcp_optional: [], r_packages: [], software: ['R'] },
+        installed_at: "2026-06-16T00:00:00.000Z",
       },
     });
 

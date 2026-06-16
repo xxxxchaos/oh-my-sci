@@ -11,6 +11,7 @@ import {
   savePassport,
   updateStageState,
   validatePassportPreconditions,
+  validatePassportSchema,
   computeStageHash,
   stageToKey,
 } from '../../src/state/passport';
@@ -314,6 +315,113 @@ describe('MaterialPassport 状态系统', () => {
         gates: {},
       });
       expect(h1).not.toBe(h2);
+    });
+
+    it('仅 artifacts 路径不同产生不同 hash', () => {
+      const h1 = computeStageHash({
+        status: 'completed',
+        artifacts: [{ path: 'a.md', checksum: 'abc' }],
+        gates: {},
+      });
+      const h2 = computeStageHash({
+        status: 'completed',
+        artifacts: [{ path: 'b.md', checksum: 'abc' }],
+        gates: {},
+      });
+      expect(h1).not.toBe(h2);
+    });
+
+    it('仅 gates 中某个值不同产生不同 hash', () => {
+      const h1 = computeStageHash({
+        status: 'completed',
+        artifacts: [],
+        gates: { gate1: { status: 'passed', checked_at: '2026-01-01', claim_sample_rate: 0.3, retry_count: 0, modes: {}, overrides: [], report_path: 'a.md' } },
+      });
+      const h2 = computeStageHash({
+        status: 'completed',
+        artifacts: [],
+        gates: { gate1: { status: 'failed', checked_at: '2026-01-01', claim_sample_rate: 0.3, retry_count: 0, modes: {}, overrides: [], report_path: 'a.md' } },
+      });
+      expect(h1).not.toBe(h2);
+    });
+
+    it('语义相同但 key 顺序不同产生相同 hash', () => {
+      const h1 = computeStageHash({
+        status: 'completed',
+        artifacts: [{ path: 'x.md', checksum: '123' }],
+        gates: {},
+      });
+      // 翻转对象 key 顺序
+      const h2 = computeStageHash({
+        artifacts: [{ path: 'x.md', checksum: '123' }],
+        gates: {},
+        status: 'completed',
+      } as any);
+      expect(h1).toBe(h2);
+    });
+
+    it('含 GateReport 嵌套字段的 stage 哈希稳定', () => {
+      const h1 = computeStageHash({
+        status: 'completed',
+        artifacts: [{ path: 'r.md', checksum: 'xyz' }],
+        gates: {
+          gate_i: { status: 'passed', checked_at: '2026-06-16', claim_sample_rate: 0.3, retry_count: 1, modes: { claim_01: 'CLEAR' }, overrides: [], report_path: 'gate.md' },
+        },
+      });
+      const h2 = computeStageHash({
+        artifacts: [{ checksum: 'xyz', path: 'r.md' }],
+        gates: {
+          gate_i: { checked_at: '2026-06-16', retry_count: 1, modes: { claim_01: 'CLEAR' }, status: 'passed', overrides: [], claim_sample_rate: 0.3, report_path: 'gate.md' },
+        },
+        status: 'completed',
+      } as any);
+      expect(h1).toBe(h2);
+    });
+  });
+
+  // ──────────────────────────────────────────────────────────
+  // validatePassportSchema
+  // ──────────────────────────────────────────────────────────
+
+  describe('validatePassportSchema', () => {
+    it('有效 passport 通过验证', () => {
+      const result = validatePassportSchema(DEFAULT_PASSPORT);
+      expect(result.valid).toBe(true);
+      expect(result.errors).toEqual([]);
+    });
+
+    it('null/undefined 验证失败', () => {
+      expect(validatePassportSchema(null).valid).toBe(false);
+      expect(validatePassportSchema(undefined).valid).toBe(false);
+      expect(validatePassportSchema('string').valid).toBe(false);
+    });
+
+    it('缺失 passport_version 时失败', () => {
+      const { passport_version, ...rest } = DEFAULT_PASSPORT;
+      const result = validatePassportSchema(rest);
+      expect(result.valid).toBe(false);
+      expect(result.errors).toContain('missing passport_version');
+    });
+
+    it('缺失 pipeline.current_stage 时失败', () => {
+      const data = { ...DEFAULT_PASSPORT, pipeline: {} };
+      const result = validatePassportSchema(data);
+      expect(result.valid).toBe(false);
+      expect(result.errors).toContain('missing pipeline.current_stage');
+    });
+
+    it('错误的 layout 值时失败', () => {
+      const data = { ...DEFAULT_PASSPORT, project: { layout: 'invalid' } };
+      const result = validatePassportSchema(data);
+      expect(result.valid).toBe(false);
+      expect(result.errors).toContain('project.layout must be "omo-sci" or "codexsci-legacy"');
+    });
+
+    it('signoff_records 不是数组时失败', () => {
+      const data = { ...DEFAULT_PASSPORT, signoff_records: 'not-array' };
+      const result = validatePassportSchema(data);
+      expect(result.valid).toBe(false);
+      expect(result.errors).toContain('signoff_records must be an array');
     });
   });
 });

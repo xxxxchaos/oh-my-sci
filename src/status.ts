@@ -3,7 +3,7 @@
  */
 
 import { getConfigPath } from "./doctor";
-import type { OmoSciConfig } from "./install";
+import type { OmoSciConfig } from "./types";
 
 export interface StatusInfo {
   installed: boolean;
@@ -92,16 +92,16 @@ export function formatStatus(status: StatusInfo): string {
     "",
     `  状态: 已安装`,
     `  配置: ${status.configPath}`,
-    `  安装时间: ${config.installedAt}`,
-    `  提供商: ${config.providers.join(", ")}`,
-    `  月配额: ${(config.quota / 100000000).toFixed(1)} 亿 tokens`,
+    `  安装时间: ${config.installed_at ?? "未知"}`,
+    `  月配额: ${(config.usage.token_quota / 100000000).toFixed(1)} 亿 tokens`,
     `  Token 余量: 未监控（待实现用量追踪）`,
     "",
-    `  能力分类 → 模型映射:`,
+    `  能力分类 → 模型 fallback 链:`,
   ];
 
-  for (const [category, models] of Object.entries(config.modelMapping)) {
-    lines.push(`    ${category}: ${models.join(" → ")}`);
+  for (const [category, catConfig] of Object.entries(config.router.categories)) {
+    const models = catConfig.fallback_chain.map(m => `${m.provider}/${m.model_id}`);
+    lines.push(`    ${category} (并发=${catConfig.concurrency_limit}): ${models.join(" → ") || "（空）"}`);
   }
 
   return lines.join("\n");

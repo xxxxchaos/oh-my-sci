@@ -91,12 +91,12 @@ export const MyPlugin: Plugin = async (ctx) => {
 
 **本项目的选择：方案 1（见下文「冻结的集成形态」）**
 
-### 已验证的 tool 注册替代形态
+### 推测形态（typecheck 通过，runtime 待验收）
 
 由于不能 import `tool()` helper，本项目使用**裸对象形态**注册工具：
 
 ```typescript
-// src/index.ts — 已验证的 tool 注册方式
+// src/index.ts — 推测形态（typecheck 通过，runtime 待验收）
 export const OmoSciPlugin = async (ctx) => {
   return {
     tool: {
@@ -113,14 +113,14 @@ export const OmoSciPlugin = async (ctx) => {
 ```
 
 **形态差异**：
-| 官方形态 (不可用) | 本项目替代形态 (已验证) |
+| 官方形态 (不可用) | 本项目替代形态 (推测，待验收) |
 |---|---|
 | `tool({ description, args, execute })` | 裸对象 `{ description, execute }` |
 | `tool.schema.string()` 参数定义 | 无参数定义，不使用 `args` schema |
 | `Plugin` 类型标注 | JSDoc 注释描述接口 |
 | `import { tool } from "@opencode-ai/plugin"` | 无外部依赖 |
 
-**验证状态**：该形态在 typecheck 和 test 中通过，但需在 OpenCode runtime 中真实验证。
+**验证状态**：该形态在 typecheck 和 test 中通过，但需在 OpenCode runtime 中真实验收。Runtime 验收需要在 OpenCode TUI 中执行 `/sci-doctor` 并确认输出，这是本地环境依赖的步骤，当前 CI 中无法自动覆盖。
 
 ## OpenCode 运行时注册策略
 
