@@ -1,7 +1,7 @@
 {
   "name": "omo-sci",
   "version": "0.1.0",
-  "description": "AI agent team for Chinese medical researchers — an OpenCode plugin",
+  "description": "医学科研 AI 智能体团队 — 面向中国临床研究者的 OpenCode 插件，覆盖选题设计、文献检索、数据分析、论文撰写、审稿到投稿全流程",
   "type": "module",
   "main": "src/index.ts",
   "exports": {
@@ -23,10 +23,24 @@
     "@types/bun": "latest",
     "typescript": "^5.5.0"
   },
+  "keywords": [
+    "omo-sci",
+    "医学研究",
+    "临床研究",
+    "AI agent",
+    "open-code",
+    "科学研究",
+    "论文写作",
+    "文献检索",
+    "统计分析",
+    "系统评价"
+  ],
   "files": [
     "src/",
     "bin/",
     ".opencode/",
+    "docs/",
+    "CHANGELOG.md",
     "README.md"
   ]
 }

@@ -15,6 +15,9 @@ export const OPENCODE_CONFIG_DIR = join(homedir(), '.config', 'opencode');
 /** ~/.config/opencode/omo-sci.jsonc — 用户配置文件路径 */
 export const OMO_SCI_CONFIG_PATH = join(OPENCODE_CONFIG_DIR, 'omo-sci.jsonc');
 
+/** ~/.config/opencode/omo-sci-profile/ — Dubin 进化记忆系统目录 */
+export const OMO_SCI_PROFILE_DIR = join(OPENCODE_CONFIG_DIR, 'omo-sci-profile');
+
 /** 默认完整配置 */
 export const DEFAULT_CONFIG: OmoSciConfig = {
   router: {
