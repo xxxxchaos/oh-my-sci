@@ -1,0 +1,154 @@
+#!/usr/bin/env bun
+/**
+ * omo-sci CLI 入口
+ *
+ * 用法:
+ *   omo-sci install --no-tui --providers deepseek,qwen-bailian --quota 500000000
+ *   omo-sci doctor
+ *   omo-sci status
+ */
+
+import { runDoctor, formatDoctorReport, formatDoctorReportJson } from "../src/doctor";
+import { install } from "../src/install";
+import { getStatus, formatStatus } from "../src/status";
+
+async function main(): Promise<void> {
+  const args = process.argv.slice(2);
+  const command = args[0];
+
+  if (!command || command === "--help" || command === "-h") {
+    showHelp();
+    process.exit(0);
+  }
+
+  switch (command) {
+    case "install": {
+      await handleInstall(args.slice(1));
+      break;
+    }
+    case "doctor": {
+      await handleDoctor(args.slice(1));
+      break;
+    }
+    case "status": {
+      await handleStatus();
+      break;
+    }
+    default: {
+      console.error(`未知命令: ${command}`);
+      console.error("运行 `omo-sci --help` 查看用法");
+      process.exit(1);
+    }
+  }
+}
+
+async function handleInstall(args: string[]): Promise<void> {
+  const options = parseInstallArgs(args);
+
+  console.log("正在安装 omo-sci...");
+  console.log(`  提供商: ${options.providers.join(", ")}`);
+  console.log(`  月配额: ${(options.quota / 100000000).toFixed(1)} 亿 tokens`);
+  console.log(`  TUI: ${options.noTui ? "禁用" : "启用"}`);
+  console.log("");
+
+  const configPath = await install(options);
+  console.log(`安装完成。配置文件: ${configPath}`);
+}
+
+async function handleDoctor(args: string[]): Promise<void> {
+  const jsonFlag = args.includes("--json") || args.includes("-j");
+  const report = await runDoctor();
+
+  if (jsonFlag) {
+    console.log(formatDoctorReportJson(report));
+  } else {
+    console.log(formatDoctorReport(report));
+  }
+
+  if (report.summary.error > 0) {
+    process.exit(1);
+  }
+}
+
+async function handleStatus(): Promise<void> {
+  const status = await getStatus();
+  console.log(formatStatus(status));
+}
+
+interface InstallArgs {
+  noTui: boolean;
+  providers: string[];
+  quota: number;
+}
+
+function parseInstallArgs(args: string[]): InstallArgs {
+  let noTui = false;
+  let providers: string[] = [];
+  let quota = 500000000;
+
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+    switch (arg) {
+      case "--no-tui":
+        noTui = true;
+        break;
+      case "--providers":
+        if (i + 1 < args.length) {
+          providers = args[++i]
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean);
+        }
+        break;
+      case "--quota":
+        if (i + 1 < args.length) {
+          quota = parseInt(args[++i], 10);
+          if (isNaN(quota) || quota <= 0) {
+            console.error("--quota 必须是正整数");
+            process.exit(1);
+          }
+        }
+        break;
+      default:
+        if (arg.startsWith("--")) {
+          console.error(`未知选项: ${arg}`);
+          process.exit(1);
+        }
+    }
+  }
+
+  if (providers.length === 0) {
+    console.error("--providers 是必填项，例如: --providers deepseek,qwen-bailian");
+    process.exit(1);
+  }
+
+  return { noTui, providers, quota };
+}
+
+function showHelp(): void {
+  console.log(`
+omo-sci — 医学科研 AI 智能体团队
+
+用法:
+  omo-sci install [选项]    安装 omo-sci 插件
+  omo-sci doctor [选项]     环境诊断
+  omo-sci status            查看配置状态
+  omo-sci --help            显示此帮助
+
+install 选项:
+  --no-tui                  跳过交互式界面
+  --providers <list>        提供商列表（逗号分隔），例如: deepseek,qwen-bailian
+  --quota <number>          月配额（tokens），例如: 500000000
+
+doctor 选项:
+  --json, -j                JSON 格式输出
+
+示例:
+  omo-sci install --providers deepseek,qwen-bailian --quota 500000000
+  omo-sci doctor
+  omo-sci doctor --json
+  omo-sci status
+`);
+}
+
+await main();

@@ -1,0 +1,28 @@
+{
+  "name": "omo-sci",
+  "version": "0.1.0",
+  "description": "AI agent team for Chinese medical researchers — an OpenCode plugin",
+  "type": "module",
+  "main": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "omo-sci": "./bin/omo-sci.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.5.0"
+  },
+  "files": [
+    "src/",
+    "bin/",
+    ".opencode/",
+    "README.md"
+  ]
+}
