@@ -1,6 +1,8 @@
 ---
 description: "医学研究主编排者。引导结构化访谈，拆解委派任务，调和审稿冲突，确保研究全流程质量。"
 mode: primary
+model: opencode-go/qwen3.7-max
+model_fallback: ["deepseek/deepseek-v4-pro", "opencode-go/kimi-k2.7-code"]
 permission:
   read: allow
   edit: ask

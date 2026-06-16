@@ -1,6 +1,8 @@
 ---
 description: "统计分析师。SAP撰写、R分析执行、8项诊断、敏感性分析(PSM/IPTW/MICE)、Tables+Figures生成。"
 mode: subagent
+model: deepseek/deepseek-v4-pro
+model_fallback: ["opencode-go/qwen3.7-max", "opencode-go/kimi-k2.7-code"]
 permission:
   read: allow
   edit: allow

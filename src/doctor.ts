@@ -22,8 +22,13 @@ export interface DoctorReport {
   };
 }
 
+export interface DoctorOptions {
+  includeModelChecks?: boolean;
+  projectDir?: string;
+}
+
 /** 执行所有环境检查 */
-export async function runDoctor(): Promise<DoctorReport> {
+export async function runDoctor(options: DoctorOptions = {}): Promise<DoctorReport> {
   const checks: HealthCheck[] = [];
 
   // 1. Bun 版本检查
@@ -44,6 +49,10 @@ export async function runDoctor(): Promise<DoctorReport> {
   // 6. R 可用性检查（可选）
   checks.push(await checkR());
 
+  if (options.includeModelChecks) {
+    checks.push(...checkAgentModels(options.projectDir ?? process.cwd()));
+  }
+
   const ok = checks.filter((c) => c.status === "ok").length;
   const warn = checks.filter((c) => c.status === "warn").length;
   const error = checks.filter((c) => c.status === "error").length;
@@ -53,6 +62,24 @@ export async function runDoctor(): Promise<DoctorReport> {
     timestamp: new Date().toISOString(),
     summary: { total: checks.length, ok, warn, error },
   };
+}
+
+function checkAgentModels(projectDir: string): HealthCheck[] {
+  try {
+    const config = loadConfig();
+    const results = checkInstalledAgentModels(projectDir, config);
+    return results.map((result) => ({
+      name: `模型配置/${result.agent}`,
+      status: result.status === 'ok' ? 'ok' : result.status === 'warn' ? 'warn' : 'error',
+      message: result.message,
+    }));
+  } catch (err) {
+    return [{
+      name: '模型配置',
+      status: 'warn',
+      message: `无法检查 agent 模型配置: ${err instanceof Error ? err.message : String(err)}`,
+    }];
+  }
 }
 
 async function checkBunVersion(): Promise<HealthCheck> {
@@ -133,6 +160,8 @@ async function checkR(): Promise<HealthCheck> {
 }
 
 import { OMO_SCI_CONFIG_PATH, OPENCODE_CONFIG_DIR } from "./constants";
+import { loadConfig } from "./config";
+import { checkInstalledAgentModels } from "./model-config";
 
 /** 获取 omo-sci 配置目录 */
 export function getConfigDir(): string {

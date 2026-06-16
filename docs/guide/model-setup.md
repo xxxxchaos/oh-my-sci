@@ -2,6 +2,8 @@
 
 omo-sci 使用**能力分类路由**（Capability-based Routing）来为不同任务自动选择最优模型。系统将模型按照 6 个能力分类组织，每个分类可以配置独立的模型，并支持 fallback 链。
 
+需要注意的是，OpenCode 实际运行 agent 时读取的是当前项目 `.opencode/agents/*.md` 里的 `model` / `model_fallback` frontmatter。`omo-sci install` 会根据你选择的 provider 生成 `~/.config/opencode/omo-sci.jsonc`，再把同一条模型链写入 9 个 agent 文件，避免出现“配置里选了 A，运行时却调用 B”的情况。
+
 ## 能力分类
 
 | 分类 | 适用场景 | 推荐模型 |
@@ -29,7 +31,18 @@ omo-sci 支持国内 7 大模型提供商：
 
 ## 配置方法
 
-配置文件位于 `~/.config/opencode/omo-sci.jsonc`，JSONC 格式（支持注释）。
+配置文件位于 `~/.config/opencode/omo-sci.jsonc`，JSONC 格式（支持注释）。当前项目的 `.opencode/agents/*.md` 会保存安装时生成的实际运行模型。
+
+安装时会显示模型分配计划，例如：
+
+```text
+模型分配计划（将写入 .opencode/agents/*.md）:
+  Agent        Category              Primary model                    Fallback
+  dubin        agent-orchestration   opencode-go/qwen3.7-max          deepseek/deepseek-v4-pro
+  archimedes   deep-reasoning        deepseek/deepseek-v4-pro         opencode-go/qwen3.7-max
+```
+
+如果你只选择一个 provider，例如 `--providers qwen-bailian`，9 个 agent 都会优先使用 `qwen-bailian/qwen3.7-max`，不会再保留默认的 DeepSeek 或 OpenCode Go 模型。
 
 ### 示例配置
 
@@ -136,14 +149,17 @@ TENCENT_API_KEY=your-key
 运行以下命令验证模型配置是否正确：
 
 ```bash
-bun run bin/omo-sci.ts doctor
+bun run bin/omo-sci.ts doctor --models
 ```
 
-如果配置正确，doctor 报告中会显示各分类的模型就绪状态。
+`doctor --models` 会检查当前项目 `.opencode/agents/*.md` 中的模型链是否都出现在 omo-sci 配置里。如果某个 agent 引用了你没有配置的模型，会显示警告。
+
+更深一层的 API smoke test 仍建议手动执行一次小请求或在 OpenCode 中跑一次简短 agent 调用，因为静态检查只能确认配置一致，不能保证远端 API 当前可用、余额充足或网络稳定。
 
 ## 重要提示
 
 - **至少为每个分类配置一个模型**，否则对应 agent 无法工作
+- OpenCode 运行时以 `.opencode/agents/*.md` 的 `model` / `model_fallback` 为准
 - 同一提供商可在多个分类中复用
 - fallback 链越长，容错性越好，但首次调用延迟可能增加
 - 修改配置后需重启 OpenCode 会话才能生效

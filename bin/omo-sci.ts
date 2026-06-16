@@ -9,11 +9,12 @@
  */
 
 import { runDoctor, formatDoctorReport, formatDoctorReportJson } from "../src/doctor";
-import { install } from "../src/install";
+import { getInstallModelPlan, install } from "../src/install";
 import { getStatus, formatStatus } from "../src/status";
 import { formatUsageBar, getUsageInfo } from "../src/commands/sci-usage";
 import { sciStart } from "../src/commands/sci-start";
 import { getProjectStatus, formatProjectStatus } from "../src/commands/sci-status";
+import type { ProviderId } from "../src/types";
 
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
@@ -67,6 +68,8 @@ async function handleInstall(args: string[]): Promise<void> {
   if (options.projectDir) console.log(`  项目目录: ${options.projectDir}`);
   console.log(`  TUI: ${options.noTui ? "禁用" : "启用"}`);
   console.log("");
+  console.log(getInstallModelPlan(options.providers as ProviderId[], options.quota));
+  console.log("");
 
   const installConfig: { configDir?: string; projectDir?: string } = {};
   if (options.configDir) installConfig.configDir = options.configDir;
@@ -78,7 +81,14 @@ async function handleInstall(args: string[]): Promise<void> {
 
 async function handleDoctor(args: string[]): Promise<void> {
   const jsonFlag = args.includes("--json") || args.includes("-j");
-  const report = await runDoctor();
+  const modelFlag = args.includes("--models");
+  let projectDir: string | undefined;
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === '--project' && i + 1 < args.length) {
+      projectDir = args[++i];
+    }
+  }
+  const report = await runDoctor({ includeModelChecks: modelFlag, projectDir });
 
   if (jsonFlag) {
     console.log(formatDoctorReportJson(report));
@@ -200,6 +210,8 @@ install 选项:
 
 doctor 选项:
   --json, -j                  JSON 格式输出
+  --models                    检查当前项目 agent 模型链是否匹配 omo-sci 配置
+  --project <dir>             指定项目目录（默认当前目录）
 
 status 选项:
   --project <dir>             指定项目目录（默认当前目录）

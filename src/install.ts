@@ -9,6 +9,11 @@ import * as path from "node:path";
 import { OMO_SCI_CONFIG_PATH, OPENCODE_CONFIG_DIR } from "./constants";
 import type { OmoSciConfig, ProviderId, CapabilityCategory } from "./types";
 import { PROVIDER_WHITELIST, getAvailableModels } from "./router/provider";
+import {
+  applyAgentModelPlan,
+  buildAgentModelPlan,
+  formatAgentModelPlan,
+} from "./model-config";
 
 // ====== 校验常量 ======
 
@@ -181,12 +186,22 @@ export async function install(
     copyDir(path.join(pkgOmo, 'commands'), commandsDir);
   }
 
+  applyAgentModelPlan(agentsDir, config);
+
   // ====== 写入 opencode.json（OpenCode 注册）======
   const opencodeJsonPath = path.join(projectDir, "opencode.json");
   const opencodeJsonContent = JSON.stringify({ plugin: ["omo-sci"] }, null, 2) + "\n";
   await Bun.write(opencodeJsonPath, opencodeJsonContent);
 
   return configPath;
+}
+
+export function getInstallModelPlan(
+  providers: ProviderId[],
+  quota: number,
+): string {
+  const config = generateConfig(providers, quota, true);
+  return formatAgentModelPlan(buildAgentModelPlan(config));
 }
 
 /**

@@ -5,7 +5,7 @@ import { describe, it, expect, afterEach } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { install, generateConfig, VALID_QUOTAS } from "../src/install";
+import { install, generateConfig, getInstallModelPlan, VALID_QUOTAS } from "../src/install";
 import { loadConfig } from "../src/config";
 import type { ProviderId } from "../src/types";
 
@@ -60,6 +60,14 @@ describe("generateConfig", () => {
       const config = generateConfig(["deepseek"], q, true);
       expect(config.usage.token_quota).toBe(q);
     }
+  });
+
+  it("安装模型计划展示每个 agent 的实际运行模型", () => {
+    const plan = getInstallModelPlan(["qwen-bailian"], 500000000);
+    expect(plan).toContain("模型分配计划");
+    expect(plan).toContain("archimedes");
+    expect(plan).toContain("qwen-bailian/qwen3.7-max");
+    expect(plan).not.toContain("deepseek/deepseek-v4-pro");
   });
 });
 
@@ -317,6 +325,31 @@ describe("install", () => {
       if (f.endsWith("dubin.md")) continue; // dubin is primary, may contain different text
       const content = await Bun.file(f).text();
       expect(content).not.toContain("完整提示词见");
+    }
+  });
+
+  it("fresh install 按用户选择的 provider 重写所有 agent 模型", async () => {
+    tmpDir = mkdtempSync(join(tmpdir(), "omo-sci-test-"));
+
+    await install(
+      {
+        noTui: true,
+        providers: ["qwen-bailian"],
+        quota: 200000000,
+      },
+      { configDir: tmpDir, projectDir: tmpDir },
+    );
+
+    const agentDir = join(tmpDir, ".opencode", "agents");
+    const agentFiles = await Array.fromAsync(
+      new Bun.Glob("*.md").scan({ cwd: agentDir, absolute: true }),
+    );
+
+    expect(agentFiles.length).toBe(9);
+    for (const file of agentFiles) {
+      const content = await Bun.file(file).text();
+      expect(content).toContain("model: qwen-bailian/qwen3.7-max");
+      expect(content).not.toContain("model: deepseek/deepseek-v4-pro");
     }
   });
 

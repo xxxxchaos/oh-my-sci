@@ -1,6 +1,8 @@
 ---
 description: "文献搜索员。多源并行检索(PubMed/CNKI/Cochrane/Exa/Consensus)，四色分类证据矩阵，效应量提取。"
 mode: subagent
+model: opencode-go/minimax-m3
+model_fallback: ["opencode-go/kimi-k2.7-code", "deepseek/deepseek-v4-flash"]
 permission:
   read: allow
   edit: allow
