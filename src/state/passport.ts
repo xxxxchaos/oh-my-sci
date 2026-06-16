@@ -99,9 +99,52 @@ export const DEFAULT_PASSPORT: MaterialPassport = {
 // ====================================================================
 
 /**
+ * 合法的阶段状态值
+ */
+const VALID_STAGE_STATUSES = ['pending', 'in_progress', 'completed', 'failed'];
+
+/**
+ * 合法的数据标签值
+ */
+const VALID_DATA_LABELS = ['SEALED', 'real', 'simulated'];
+
+/**
+ * 合法的闸门状态值
+ */
+const VALID_GATE_STATUSES = ['not_run', 'passed', 'failed'];
+
+/**
+ * 合法的证据类型值
+ */
+const VALID_EVIDENCE_TYPES = ['analysis_result', 'literature', 'guideline', 'journal_instruction'];
+
+/**
+ * 合法的验证状态值
+ */
+const VALID_VERIFICATION_STATUSES = ['verified', 'missing', 'conflict', 'not_applicable'];
+
+/**
+ * 6 个流水线阶段 key
+ */
+const STAGE_KEYS = [
+  'stage_0_intake',
+  'stage_1_design',
+  'stage_2_analysis',
+  'stage_3_writing',
+  'stage_4_submission',
+  'stage_5_summary',
+] as const;
+
+/**
  * 验证 MaterialPassport schema 完整性
  *
- * 检查必要字段是否存在且类型正确。
+ * 检查必要字段是否存在且类型正确，包括：
+ * - 顶层字段（passport_version, project, pipeline）
+ * - data_provenance 标签值
+ * - 6 个 stage_* block 的 status/artifacts
+ * - integrity_gate_1/2 的 GateReport 结构
+ * - claim_evidence_map 为合法数组
+ *
  * 返回 { valid, errors }，errors 列出所有缺失或无效的字段。
  */
 export function validatePassportSchema(data: unknown): { valid: boolean; errors: string[] } {
@@ -111,6 +154,7 @@ export function validatePassportSchema(data: unknown): { valid: boolean; errors:
   }
   const p = data as Record<string, unknown>;
 
+  // ── 顶层字段 ──
   if (!p.passport_version) errors.push('missing passport_version');
   if (!p.project || typeof p.project !== 'object') errors.push('missing or invalid project');
   else {
@@ -125,6 +169,84 @@ export function validatePassportSchema(data: unknown): { valid: boolean; errors:
   }
   if (!Array.isArray(p.signoff_records)) errors.push('signoff_records must be an array');
   if (!Array.isArray(p.review_sessions)) errors.push('review_sessions must be an array');
+
+  // ── data_provenance 校验 ──
+  if (p.data_provenance !== undefined) {
+    if (!VALID_DATA_LABELS.includes(p.data_provenance as string)) {
+      errors.push(`data_provenance must be one of: ${VALID_DATA_LABELS.join(', ')}`);
+    }
+  }
+
+  // ── 6 个 stage_* block 校验 ──
+  for (const key of STAGE_KEYS) {
+    const block = p[key];
+    if (block !== undefined) {
+      if (typeof block !== 'object' || block === null) {
+        errors.push(`${key} must be an object`);
+        continue;
+      }
+      const s = block as Record<string, unknown>;
+      if (s.status !== undefined && !VALID_STAGE_STATUSES.includes(s.status as string)) {
+        errors.push(`${key}.status must be one of: ${VALID_STAGE_STATUSES.join(', ')}`);
+      }
+      if (s.artifacts !== undefined && !Array.isArray(s.artifacts)) {
+        errors.push(`${key}.artifacts must be an array`);
+      }
+      if (s.gates !== undefined && (typeof s.gates !== 'object' || s.gates === null || Array.isArray(s.gates))) {
+        errors.push(`${key}.gates must be an object (Record<string, GateReport>)`);
+      }
+    }
+  }
+
+  // ── integrity_gate_1 / integrity_gate_2 校验 ──
+  for (const gateKey of ['integrity_gate_1', 'integrity_gate_2'] as const) {
+    const gate = p[gateKey];
+    if (gate !== undefined) {
+      if (typeof gate !== 'object' || gate === null) {
+        errors.push(`${gateKey} must be a GateReport object`);
+        continue;
+      }
+      const g = gate as Record<string, unknown>;
+      if (g.status !== undefined && !VALID_GATE_STATUSES.includes(g.status as string)) {
+        errors.push(`${gateKey}.status must be one of: ${VALID_GATE_STATUSES.join(', ')}`);
+      }
+      if (g.claim_sample_rate !== undefined && ![0.3, 1.0].includes(g.claim_sample_rate as number)) {
+        errors.push(`${gateKey}.claim_sample_rate must be 0.3 or 1.0`);
+      }
+      if (g.retry_count !== undefined && (typeof g.retry_count !== 'number' || g.retry_count < 0)) {
+        errors.push(`${gateKey}.retry_count must be a non-negative integer`);
+      }
+      if (g.modes !== undefined && (typeof g.modes !== 'object' || Array.isArray(g.modes))) {
+        errors.push(`${gateKey}.modes must be an object (Record<string, GateModeStatus>)`);
+      }
+      if (g.report_path !== undefined && typeof g.report_path !== 'string') {
+        errors.push(`${gateKey}.report_path must be a string`);
+      }
+    }
+  }
+
+  // ── claim_evidence_map 校验 ──
+  if (p.claim_evidence_map !== undefined) {
+    if (!Array.isArray(p.claim_evidence_map)) {
+      errors.push('claim_evidence_map must be an array');
+    } else {
+      for (let i = 0; i < p.claim_evidence_map.length; i++) {
+        const item = (p.claim_evidence_map as unknown[])[i];
+        if (typeof item !== 'object' || item === null) {
+          errors.push(`claim_evidence_map[${i}] must be an object`);
+          continue;
+        }
+        const c = item as Record<string, unknown>;
+        if (!c.claim_id) errors.push(`claim_evidence_map[${i}] missing claim_id`);
+        if (c.evidence_type !== undefined && !VALID_EVIDENCE_TYPES.includes(c.evidence_type as string)) {
+          errors.push(`claim_evidence_map[${i}].evidence_type must be one of: ${VALID_EVIDENCE_TYPES.join(', ')}`);
+        }
+        if (c.verification_status !== undefined && !VALID_VERIFICATION_STATUSES.includes(c.verification_status as string)) {
+          errors.push(`claim_evidence_map[${i}].verification_status must be one of: ${VALID_VERIFICATION_STATUSES.join(', ')}`);
+        }
+      }
+    }
+  }
 
   return { valid: errors.length === 0, errors };
 }

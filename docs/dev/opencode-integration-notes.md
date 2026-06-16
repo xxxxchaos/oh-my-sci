@@ -149,26 +149,34 @@ OpenCode 需要以下三个要素才能识别 omo-sci：
 - 后续需要支持合并读取已有 `opencode.json` 的 plugin 数组
 - 全局 `~/.config/opencode/opencode.json` 同样可以注册插件，但本项目优先使用项目级配置
 
+> **风险标注 (P2-6)**: 当前 `install()` 直接写入 `{ "plugin": ["omo-sci"] }`，会覆盖项目已有的 OpenCode 配置（如其他插件、agent、command 声明）。Phase 2 前需要实现合并逻辑（读取已有 plugin 数组，去重后写入），在合并逻辑完成前，多插件项目需手动备份恢复 `opencode.json`。
+
 ### 验证命令
 
-安装后，可用以下命令验证集成是否生效：
+以下命令可用于验证 OpenCode 集成状态（仅列出已验证可行的 CLI 命令）：
 
 ```bash
-# 验证 dubin agent 是否可被 OpenCode 识别
-opencode agent list | grep dubin
+# 验证 dubin agent 是否可被 OpenCode 识别（已验证通过）
+opencode agent list | rg dubin
+# 预期输出: dubin (primary) 或类似行
 
-# 验证 sci-doctor 命令是否可被 OpenCode 识别
-opencode command list | grep sci-doctor
-
-# 验证 sci-status 命令是否可被 OpenCode 识别
-opencode command list | grep sci-status
+# 验证本地插件代码是否可被 OpenCode 加载
+# 在 OpenCode TUI 中输入以下命令并确认输出：
+#   /sci-doctor           — 验证 sci-doctor 工具是否注册
+#   /sci-status           — 验证 sci-status 命令是否生效
+#   /@dubin <你的问题>    — 验证 dubin agent 是否可被调用
+#
+# 注意: TUI 验收是本地环境依赖的步骤，当前 CI 中无法自动覆盖。
 ```
+
+> **注意**: `opencode command list` 子命令在当前 OpenCode CLI 中不可用，使用 TUI 中的 `/` 命令执行作为替代验收方式。
 
 ### 已知限制
 
 - OpenCode runtime 对 `opencode.json` 中 `plugin` 数组的加载机制依赖 npm 包名解析，需要 `omo-sci` 包在 npm 上可访问，或通过本地路径加载
 - 当前未在 OpenCode runtime 中完全验证插件加载 + tool 注册 + agent 识别的端到端流程
 - 命令通过 `.opencode/commands/*.md` 文件声明，需要 OpenCode 在启动时扫描这些文件
+- plugin tool 裸对象形态（`{ description, execute }` 无 `tool()` helper wrapper）：typecheck 通过，runtime 待验收。参见上文「推测形态（typecheck 通过，runtime 待验收）」章节。
 
 ## 自定义命令
 

@@ -12,6 +12,10 @@
  * @see docs/dev/opencode-integration-notes.md
  */
 
+// 必须最先导入 hooks 注册模块，确保所有 22 个 lifecycle hooks
+// 在插件初始化前完成注册。模块副作用使各 hook 文件调用 on() 进行注册。
+import './hooks/index.ts';
+
 import { runDoctor, formatDoctorReport } from "./doctor";
 
 /**

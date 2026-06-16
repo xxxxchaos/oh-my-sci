@@ -2,20 +2,35 @@ import { loadConfig } from '../config';
 import { OMO_SCI_CONFIG_PATH } from '../constants';
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { modify, applyEdits } from 'jsonc-parser';
+import type { OmoSciConfig } from '../types';
 
 interface UsageRecord {
   timestamp: string; agent: string; stage: string; input_tokens: number; output_tokens: number;
 }
 
-export function recordUsage(record: UsageRecord): { currentUsage: number; quotaPercent: number; warningLevel: 'none' | 'light' | 'moderate' | 'critical' } {
-  const config = loadConfig();
+/**
+ * 记录 token 用量并持久化到配置文件
+ *
+ * @param record 用量记录
+ * @param configPath 配置文件路径（可选，默认使用 OMO_SCI_CONFIG_PATH）
+ * @returns 更新后的用量信息和警告等级
+ */
+export function recordUsage(
+  record: UsageRecord,
+  configPath?: string,
+): { currentUsage: number; quotaPercent: number; warningLevel: 'none' | 'light' | 'moderate' | 'critical' } {
+  const cfgPath = configPath ?? OMO_SCI_CONFIG_PATH;
+  const config = loadConfig(cfgPath);
   const totalTokens = record.input_tokens + record.output_tokens;
   const newUsage = config.usage.current_usage + totalTokens;
-  if (existsSync(OMO_SCI_CONFIG_PATH)) {
-    const raw = readFileSync(OMO_SCI_CONFIG_PATH, 'utf-8');
+
+  // 仅在文件已存在时持久化，避免创建或污染不存在的路径
+  if (existsSync(cfgPath)) {
+    const raw = readFileSync(cfgPath, 'utf-8');
     const edits = modify(raw, ['usage', 'current_usage'], newUsage, {});
-    writeFileSync(OMO_SCI_CONFIG_PATH, applyEdits(raw, edits), 'utf-8');
+    writeFileSync(cfgPath, applyEdits(raw, edits), 'utf-8');
   }
+
   config.usage.current_usage = newUsage;
   const pct = (newUsage / config.usage.token_quota) * 100;
   let warningLevel: 'none' | 'light' | 'moderate' | 'critical' = 'none';

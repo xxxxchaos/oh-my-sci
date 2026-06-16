@@ -5,12 +5,12 @@
  * 由于全局 registry 和 mock.module 可能被其他测试文件修改，
  * 这里在 beforeEach 中重置状态并重新注册 handler。
  */
-import { describe, it, expect, mock, beforeEach, afterEach } from 'bun:test';
+import { describe, it, expect, mock, beforeEach, afterEach, afterAll } from 'bun:test';
 import { mkdtempSync, rmSync, existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createRequire } from 'node:module';
-import { clearHooks, dispatch } from '../../src/hooks/registry';
+import { clearHooks, dispatch, restoreDefaultHooks } from '../../src/hooks/registry';
 import { loadPassport } from '../../src/state/passport';
 import { createBoulder } from '../../src/state/boulder';
 import { DEFAULT_CONFIG } from '../../src/constants';
@@ -19,6 +19,10 @@ import type { HookContext } from '../../src/types';
 const _require = createRequire(import.meta.url);
 
 describe('session hooks', () => {
+  // 测试完成后恢复默认 hooks，避免影响后续测试文件
+  afterAll(() => {
+    restoreDefaultHooks();
+  });
   let tmpDir: string;
   let origCwd: () => string;
 

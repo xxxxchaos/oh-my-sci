@@ -1,10 +1,14 @@
 /**
  * hooks/registry 模块测试
+ *
+ * 导入 hooks/index.ts 确保默认 hooks 快照可用，在测试文件结束时
+ * 恢复默认 hooks 而不是清空，避免影响后续测试文件。
  */
 import { describe, it, expect, mock, beforeEach, afterAll } from 'bun:test';
-import { on, dispatch, clearHooks, registeredHooks } from '../../src/hooks/registry';
+import { on, dispatch, clearHooks, registeredHooks, restoreDefaultHooks } from '../../src/hooks/registry';
 import type { HookName } from '../../src/types';
 import { DEFAULT_CONFIG } from '../../src/constants';
+import '../../src/hooks/index'; // 确保默认 hooks 快照被保存
 
 describe('hooks registry', () => {
   // 每个测试前重置注册表
@@ -13,7 +17,7 @@ describe('hooks registry', () => {
   });
 
   afterAll(() => {
-    clearHooks();
+    restoreDefaultHooks();
   });
 
   it('on + dispatch: 注册的 handler 在 dispatch 时被调用', async () => {

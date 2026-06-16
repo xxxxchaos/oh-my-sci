@@ -13,6 +13,7 @@ import { install } from "../src/install";
 import { getStatus, formatStatus } from "../src/status";
 import { formatUsageBar, getUsageInfo } from "../src/commands/sci-usage";
 import { sciStart } from "../src/commands/sci-start";
+import { getProjectStatus, formatProjectStatus } from "../src/commands/sci-status";
 
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
@@ -33,7 +34,11 @@ async function main(): Promise<void> {
       break;
     }
     case "status": {
-      await handleStatus();
+      await handleStatus(args.slice(1));
+      break;
+    }
+    case "config": {
+      await handleConfig();
       break;
     }
     case "usage": {
@@ -80,7 +85,20 @@ async function handleDoctor(args: string[]): Promise<void> {
   }
 }
 
-async function handleStatus(): Promise<void> {
+async function handleStatus(args: string[]): Promise<void> {
+  let projectDir: string | undefined;
+
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === '--project' && i + 1 < args.length) {
+      projectDir = args[++i];
+    }
+  }
+
+  const status = getProjectStatus(projectDir);
+  console.log(formatProjectStatus(status));
+}
+
+async function handleConfig(): Promise<void> {
   const status = await getStatus();
   console.log(formatStatus(status));
 }
@@ -149,26 +167,32 @@ function showHelp(): void {
 omo-sci — 医学科研 AI 智能体团队
 
 用法:
-  omo-sci install [选项]    安装 omo-sci 插件
-  omo-sci doctor [选项]     环境诊断
-  omo-sci status            查看配置状态
-  omo-sci usage             查看用量信息
-  omo-sci start             启动 Dubin 研究引擎
-  omo-sci --help            显示此帮助
+  omo-sci install [选项]      安装 omo-sci 插件
+  omo-sci doctor [选项]       环境诊断
+  omo-sci status [选项]       查看项目 Passport/Boulder 状态
+  omo-sci config              查看安装配置状态
+  omo-sci usage               查看用量信息
+  omo-sci start               启动 Dubin 研究引擎
+  omo-sci --help              显示此帮助
 
 install 选项:
-  --no-tui                  跳过交互式界面
-  --providers <list>        提供商列表（逗号分隔），例如: deepseek,qwen-bailian
-  --quota <number>          月配额（tokens），例如: 500000000
+  --no-tui                    跳过交互式界面
+  --providers <list>          提供商列表（逗号分隔），例如: deepseek,qwen-bailian
+  --quota <number>            月配额（tokens），例如: 500000000
 
 doctor 选项:
-  --json, -j                JSON 格式输出
+  --json, -j                  JSON 格式输出
+
+status 选项:
+  --project <dir>             指定项目目录（默认当前目录）
 
 示例:
   omo-sci install --providers deepseek,qwen-bailian --quota 500000000
   omo-sci doctor
   omo-sci doctor --json
   omo-sci status
+  omo-sci status --project /path/to/project
+  omo-sci config
   omo-sci usage
   omo-sci start
 `);

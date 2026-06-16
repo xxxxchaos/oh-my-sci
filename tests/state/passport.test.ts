@@ -423,5 +423,126 @@ describe('MaterialPassport 状态系统', () => {
       expect(result.valid).toBe(false);
       expect(result.errors).toContain('signoff_records must be an array');
     });
+
+    // ── 增强校验：data_provenance ──
+
+    it('data_provenance 为合法值时通过', () => {
+      const data = { ...DEFAULT_PASSPORT };
+      for (const label of ['SEALED', 'real', 'simulated']) {
+        data.data_provenance = label as any;
+        const result = validatePassportSchema(data);
+        expect(result.valid).toBe(true);
+      }
+    });
+
+    it('data_provenance 为非法值时失败', () => {
+      const data = { ...DEFAULT_PASSPORT, data_provenance: 'invalid-label' };
+      const result = validatePassportSchema(data);
+      expect(result.valid).toBe(false);
+      expect(result.errors[0]).toContain('data_provenance');
+    });
+
+    // ── 增强校验：6 个 stage_* block ──
+
+    it('stage_* block status 为非法值时失败', () => {
+      const data = { ...DEFAULT_PASSPORT, stage_0_intake: { status: 'invalid-status', artifacts: [], gates: {} } as any };
+      const result = validatePassportSchema(data);
+      expect(result.valid).toBe(false);
+      expect(result.errors[0]).toContain('stage_0_intake.status');
+    });
+
+    it('stage_* block artifacts 不是数组时失败', () => {
+      const data = { ...DEFAULT_PASSPORT, stage_1_design: { status: 'pending', artifacts: 'not-array', gates: {} } };
+      const result = validatePassportSchema(data);
+      expect(result.valid).toBe(false);
+      expect(result.errors[0]).toContain('stage_1_design.artifacts');
+    });
+
+    it('stage_* block gates 不是对象时失败', () => {
+      const data = { ...DEFAULT_PASSPORT, stage_2_analysis: { status: 'pending', artifacts: [], gates: [] } };
+      const result = validatePassportSchema(data);
+      expect(result.valid).toBe(false);
+      expect(result.errors[0]).toContain('stage_2_analysis.gates');
+    });
+
+    it('所有 6 个 stage_* block 同时校验', () => {
+      const data = { ...DEFAULT_PASSPORT };
+      // 将 stage_0_intake 改为无效 status
+      data.stage_0_intake = { status: 'bogus', artifacts: [], gates: {} } as any;
+      const result = validatePassportSchema(data);
+      expect(result.errors.some(e => e.includes('stage_0_intake'))).toBe(true);
+    });
+
+    // ── 增强校验：integrity_gate_* ──
+
+    it('integrity_gate_1 为合法 GateReport 时通过', () => {
+      const data = { ...DEFAULT_PASSPORT, integrity_gate_1: { status: 'passed', checked_at: '2026-06-16T00:00:00Z', claim_sample_rate: 0.3, retry_count: 0, modes: {}, overrides: [], report_path: 'gate.md' } };
+      const result = validatePassportSchema(data);
+      expect(result.valid).toBe(true);
+    });
+
+    it('integrity_gate_1 claim_sample_rate 非法时失败', () => {
+      const data = { ...DEFAULT_PASSPORT, integrity_gate_1: { status: 'passed', claim_sample_rate: 0.5 } };
+      const result = validatePassportSchema(data);
+      expect(result.valid).toBe(false);
+      expect(result.errors[0]).toContain('claim_sample_rate');
+    });
+
+    it('integrity_gate_2 retry_count 非法时失败', () => {
+      const data = { ...DEFAULT_PASSPORT, integrity_gate_2: { status: 'failed', retry_count: -1 } };
+      const result = validatePassportSchema(data);
+      expect(result.valid).toBe(false);
+      expect(result.errors[0]).toContain('retry_count');
+    });
+
+    it('integrity_gate_1 modes 不是对象时失败', () => {
+      const data = { ...DEFAULT_PASSPORT, integrity_gate_2: { status: 'passed', modes: 'not-object' } };
+      const result = validatePassportSchema(data);
+      expect(result.valid).toBe(false);
+      expect(result.errors[0]).toContain('modes');
+    });
+
+    it('integrity_gate_1 report_path 不是字符串时失败', () => {
+      const data = { ...DEFAULT_PASSPORT, integrity_gate_1: { report_path: 123 } };
+      const result = validatePassportSchema(data);
+      expect(result.valid).toBe(false);
+      expect(result.errors[0]).toContain('report_path');
+    });
+
+    // ── 增强校验：claim_evidence_map ──
+
+    it('claim_evidence_map 为合法数组时通过', () => {
+      const data = { ...DEFAULT_PASSPORT, claim_evidence_map: [{ claim_id: 'c1', evidence_type: 'literature', verification_status: 'verified' }] };
+      const result = validatePassportSchema(data);
+      expect(result.valid).toBe(true);
+    });
+
+    it('claim_evidence_map 不是数组时失败', () => {
+      const data = { ...DEFAULT_PASSPORT, claim_evidence_map: 'not-array' };
+      const result = validatePassportSchema(data);
+      expect(result.valid).toBe(false);
+      expect(result.errors[0]).toContain('claim_evidence_map');
+    });
+
+    it('claim_evidence_map 记录缺失 claim_id 时报错', () => {
+      const data = { ...DEFAULT_PASSPORT, claim_evidence_map: [{ evidence_type: 'literature', verification_status: 'verified' }] };
+      const result = validatePassportSchema(data);
+      expect(result.valid).toBe(false);
+      expect(result.errors[0]).toContain('claim_id');
+    });
+
+    it('claim_evidence_map 记录 evidence_type 非法时报错', () => {
+      const data = { ...DEFAULT_PASSPORT, claim_evidence_map: [{ claim_id: 'c1', evidence_type: 'invalid-type', verification_status: 'verified' }] };
+      const result = validatePassportSchema(data);
+      expect(result.valid).toBe(false);
+      expect(result.errors[0]).toContain('evidence_type');
+    });
+
+    it('claim_evidence_map 记录 verification_status 非法时报错', () => {
+      const data = { ...DEFAULT_PASSPORT, claim_evidence_map: [{ claim_id: 'c1', evidence_type: 'literature', verification_status: 'invalid' }] };
+      const result = validatePassportSchema(data);
+      expect(result.valid).toBe(false);
+      expect(result.errors[0]).toContain('verification_status');
+    });
   });
 });

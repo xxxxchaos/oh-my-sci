@@ -7,6 +7,52 @@
 ---
 
 
+## 2026-06-16 22:00 — Codex Phase 1 闸门审查修复 ✅
+
+### P1-1: Hook 统一自动注册 ✅
+- 创建 `src/hooks/index.ts` 导入所有 22 个 hook 模块（模块副作用自动调用 `on()`）
+- `src/index.ts` 顶部导入 `./hooks/index.ts`
+- `registry.ts` 新增 `snapshotDefaultHooks()` / `restoreDefaultHooks()` / `hasDefaultHooks()`
+- `hooks/index.ts` 末尾调用 `snapshotDefaultHooks()` 保存快照
+- 测试文件 `afterAll` 统一改用 `restoreDefaultHooks()` 而非 `clearHooks()`
+- 新增 `tests/hooks/auto-register.test.ts`（6 个测试）
+- 验证: 导入 plugin entry 后 `registeredHooks()` → 22
+
+### P1-2: Usage-tracker 配置污染 ✅
+- `recordUsage()` 增加可选 `configPath?: string` 参数
+- 配置文件不存在时不创建/不污染真实路径
+- 测试全部改用 `mkdtempSync` + 临时 JSON 文件
+- 新增「无 config 文件时不创建」测试断言
+
+### P2-3: Passport schema validation 增强 ✅
+- 补充: data_provenance 标签值校验（SEALED/real/simulated）
+- 6 个 stage\_* block: status 枚举、artifacts 数组、gates 对象校验
+- integrity\_gate\_1/2: GateReport 各字段校验
+- claim\_evidence\_map: 元素结构校验（claim\_id, evidence\_type, verification\_status）
+- 新增 12 个验证测试
+
+### P2-4: sci-status 语义分裂 ✅
+- `omo-sci status` → 调用 `getProjectStatus()` / `formatProjectStatus()` 显示项目状态
+- 新增 `omo-sci config` 显示安装配置状态
+- `status` 支持 `--project <dir>` 参数
+
+### P2-5: OpenCode 集成文档更新 ✅
+- 移除 `opencode command list | grep sci-doctor` 等不可运行命令
+- 改为 TUI 验收步骤说明
+- 标注 plugin tool 裸对象形态 = "typecheck 通过，runtime 待验收"
+
+### P2-6: opencode.json 覆盖风险 ✅
+- handoff.md 和 opencode-integration-notes.md 中标注风险
+- 未修改代码（Phase 2 前不需要正式 merge logic）
+
+### 验证结果
+- `bun run typecheck` ✅ 通过
+- `bun test` ✅ 166/166 通过
+- `bun run bin/omo-sci.ts status` ✅ 项目状态正常
+- `bun run bin/omo-sci.ts config` ✅ 配置状态正常
+
+---
+
 ## 2026-06-16 16:30 — Phase 0 Task 0: OpenCode 集成验证 ✅
 
 ### 操作
@@ -148,3 +194,25 @@ src/index.ts, src/doctor.ts, src/install.ts, src/status.ts, bin/omo-sci.ts, pack
 - 创建 tests/hooks/session.test.ts (4 tests)
 - typecheck ✅, bun test 91/91 ✅
 - 提交: 90e70e5
+
+## 2026-06-16 20:15 — Task 9: Environment checker ✅
+- 创建 src/environment/reporter.ts, check.ts, tests/environment/reporter.test.ts
+- typecheck ✅, bun test 99/99 ✅
+
+## 2026-06-16 20:30 — Task 10: Safety ✅
+- 创建 src/safety/circuit-breaker.ts, usage-tracker.ts + 测试 (14 tests)
+- 修复 config.ts 浅拷贝→structuredClone
+- typecheck ✅, bun test 114/114 ✅
+
+## 2026-06-16 20:50 — Tasks 11-14: Phase 1 收尾 ✅
+- Task 11: generateConfig 独立导出 + 7 新测试
+- Task 12: 创建 src/commands/sci-doctor, sci-status, sci-usage, sci-start + .opencode/ 命令文件 + bin/omo-sci.ts 更新
+- Task 13: 复制 7 个 opensci references
+- Task 14: 创建 tests/integration/phase1.test.ts (6 integration tests)
+- typecheck ✅, bun test 141/141 ✅
+- 提交: 0d31bfc (17 files, +1924/-28)
+
+## 🎉 Phase 1 完成
+- 总测试: 141/141 通过
+- 总源文件: 30+ TypeScript 文件
+- 提交数: ~10 commits
