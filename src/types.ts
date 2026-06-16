@@ -308,7 +308,7 @@ export interface CategoryConfig {
 /** 分类路由配置 */
 export interface RouterConfig {
   categories: Record<CapabilityCategory, CategoryConfig>;
-  concurrency: number;
+  concurrency: { max_total_agents: number };
 }
 
 // ====================================================================
@@ -318,28 +318,33 @@ export interface RouterConfig {
 /** 熔断器和安全机制配置 */
 export interface SafetyConfig {
   /** 子 agent 最大执行步数 */
-  max_steps: number;
+  max_step: number;
   /** 子 agent 最大执行时间（分钟） */
   max_time_minutes: number;
-  /** 最大并发数 */
-  max_concurrency: number;
   /** 循环检测阈值（连续相同工具+参数步数） */
-  loop_detection_threshold: number;
+  loop_detect_threshold: number;
 }
 
 /** 用量监控配置 */
 export interface UsageConfig {
   /** 月配额（token 数） */
-  quota: number;
-  /** 用量预警百分比阈值 */
-  warning_thresholds: number[];
+  token_quota: number;
+  /** 当前用量 */
+  current_usage: number;
+  /** 配额重置日期 (YYYY-MM-DD) */
+  quota_reset_date: string;
 }
 
 /** 环境就绪检查配置 */
 export interface EnvironmentConfig {
-  require_git: boolean;
-  require_r: boolean;
-  required_mcp_tools: string[];
+  /** 必需 MCP 工具列表 */
+  mcp_required: string[];
+  /** 可选 MCP 工具列表 */
+  mcp_optional: string[];
+  /** 推荐 R 包列表 */
+  r_packages: string[];
+  /** 必需软件列表 */
+  software: string[];
 }
 
 // ====================================================================
