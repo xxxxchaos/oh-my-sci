@@ -54,6 +54,8 @@ export interface AgentStatus {
   fallbackChain: string[];
   /** 分类中文标签 */
   categoryLabel: string;
+  /** 是否为自定义配置（当前模型不等于该分类的默认模型） */
+  isCustom: boolean;
 }
 
 // ====================================================================
@@ -73,33 +75,46 @@ export function getAgentStatus(projectDir?: string): AgentStatus[] {
   }
 
   // 加载 omo-sci 配置（用于 fallback 可用性参考，同时作为兜底）
-  loadConfig();
+  const config = loadConfig();
 
-  return readdirSync(agentsDir)
-    .filter(file => file.endsWith('.md'))
-    .sort()
-    .map(file => {
-      const agentName = file.replace(/\.md$/, '');
-      const content = readFileSync(join(agentsDir, file), 'utf-8');
-      const models = extractAgentModels(content);
+  // 先按字母序读入所有 agent，存入 Map
+  const statusMap = new Map<string, AgentStatus>();
+  for (const file of readdirSync(agentsDir).filter(f => f.endsWith('.md'))) {
+    const agentName = file.replace(/\.md$/, '');
+    const content = readFileSync(join(agentsDir, file), 'utf-8');
+    const models = extractAgentModels(content);
 
-      const displayName =
-        AGENT_DISPLAY_NAMES[agentName as AgentName] ?? agentName;
-      const categoryKey = AGENT_CATEGORIES[agentName as AgentName];
-      const categoryLabel = categoryKey
-        ? (CATEGORY_LABELS[categoryKey] ?? categoryKey)
-        : '未知';
+    const displayName =
+      AGENT_DISPLAY_NAMES[agentName as AgentName] ?? agentName;
+    const categoryKey = AGENT_CATEGORIES[agentName as AgentName];
+    const categoryLabel = categoryKey
+      ? (CATEGORY_LABELS[categoryKey] ?? categoryKey)
+      : '未知';
 
-      const [currentModel = '未配置', ...fallbackChain] = models;
+    const [currentModel = '未配置', ...fallbackChain] = models;
 
-      return {
-        agentName,
-        displayName,
-        currentModel,
-        fallbackChain,
-        categoryLabel,
-      };
+    // 判断是否为自定义配置：当前模型不等于该分类的默认模型
+    let isCustom = false;
+    if (categoryKey && currentModel !== '未配置') {
+      const defaultChain = config.router.categories[categoryKey]?.fallback_chain ?? [];
+      const defaultModel = defaultChain.length > 0 ? modelKey(defaultChain[0]) : undefined;
+      isCustom = defaultModel !== undefined && currentModel !== defaultModel;
+    }
+
+    statusMap.set(agentName, {
+      agentName,
+      displayName,
+      currentModel,
+      fallbackChain,
+      categoryLabel,
+      isCustom,
     });
+  }
+
+  // 按 AGENT_NAMES 顺序返回
+  return AGENT_NAMES
+    .filter(name => statusMap.has(name))
+    .map(name => statusMap.get(name)!);
 }
 
 // ====================================================================
@@ -410,7 +425,7 @@ export const MODEL_DESCRIPTIONS: Record<string, {
 // 面板辅助 — 使用 CJK 视觉宽度进行对齐
 // ====================================================================
 
-const PANEL_W = 56;   // 面板总宽度（含边框）
+const PANEL_W = 64;   // 面板总宽度（含边框）
 const CONTENT_W = PANEL_W - 2; // 两 ║ 之间内容宽度
 
 function visualLen(s: string): number {
@@ -610,7 +625,8 @@ export function renderMainPanel(projectDir?: string, version?: string): string {
     for (let i = 0; i < statuses.length; i++) {
       const s = statuses[i];
       const idx = String(i + 1);
-      const agentLine = `${idx}. ${s.agentName.padEnd(10)} ${s.categoryLabel.slice(0, 18).padEnd(18)} ${s.currentModel}`;
+      const marker = s.isCustom ? '✓ ' : '  ';
+      const agentLine = `${marker}${idx}. ${s.displayName.padEnd(20)} ${s.currentModel}`;
       const innerContent = '  │  ' + padVisual(agentLine, innerW - 6) + '│  ';
       lines.push(boxLine(innerContent));
     }
