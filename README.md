@@ -125,6 +125,17 @@ opencode agent list
 
 你应该能看到 `dubin`、`archimedes`、`irber`、`pubmeder`、`spsser`、`writer`、`submitter`、`ebmer`、`polisher`。
 
+也可以直接查看和切换各 agent 的模型：
+
+```bash
+omo-sci agent                 # 查看 9 个 agent 当前使用的模型
+omo-sci agent providers       # 按能力分类查看可用模型池
+omo-sci agent set spsser deepseek/deepseek-v4-pro   # 切换单个 agent
+omo-sci agent reset           # 恢复为默认分配
+```
+
+在 OpenCode TUI 中输入 `/sci-agent` 也可以直接查看和切换。
+
 ## 开始一个研究项目
 
 进入你的研究项目目录，启动 OpenCode：
