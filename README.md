@@ -1,288 +1,206 @@
 # omo-sci
 
-医学科研智能体团队，运行在 OpenCode 里的中文科研工作流插件。
+> 医学科研 AI 智能体团队 — OpenCode 中文科研工作流插件
 
-omo-sci 的目标是把一个临床研究想法，逐步推进成可执行的研究方案、统计分析计划、论文初稿和投稿材料。它不是单个聊天助手，而是一组分工明确的 agent：Dubin 负责和你对话、拆解任务和把关节奏，其他 specialist agent 负责研究设计、文献检索、统计分析、写作、审稿和投稿准备。
+omo-sci 是一个运行在 [OpenCode](https://opencode.ai) 里的插件。你把一个临床困惑告诉它，它组织一支 AI 智能体团队，帮你一步步推进：理清研究问题 → 设计研究方案 → 做统计分析 → 写论文初稿 → 审稿润色 → 准备投稿材料。
 
-> 当前版本：v0.1.6 beta。适合朋友小范围实测和反馈，不建议直接用于正式伦理提交、临床决策或未复核的论文投稿。
+它不是"一个聊天机器人回答你的问题"，而是"一支分工明确的 AI 研究团队在和你协作"。主编排者 **Dubin** 负责和你对话、拆解任务，其他 8 个专业 agent 各司其职（设计、搜索、统计、写作、审稿、投稿）。
 
-## 它能做什么
+---
 
-- 从一句临床困惑开始，引导你澄清研究问题和 PICO。
-- 生成研究蓝图，包括研究类型、纳排标准、结局指标、样本量思路和偏倚控制。
-- 起草统计分析计划，包括变量清单、主分析、敏感性分析和缺失值处理。
-- 帮你组织文献检索、论文写作、逻辑润色、方法学审查和投稿准备。
-- 用 Material Passport / Boulder 记录项目阶段、闸门状态和中断恢复信息。
-- 在安装时按你实际拥有的模型 provider 生成每个 agent 的运行模型，避免 agent 调用你没配置的模型。
+## 运行环境
 
-## Agent 团队
+| 必需 | 说明 |
+|------|------|
+| [Bun](https://bun.sh) ≥ 1.2 | JavaScript 运行时，安装 omo-sci 用 |
+| [OpenCode](https://opencode.ai) CLI | AI 编码终端，omo-sci 的宿主平台 |
+| Git | 版本管理 |
+| 至少一个可用的模型 provider | 例如 OpenCode Go、DeepSeek API 等 |
 
-| Agent | 角色 | 主要任务 |
-|------|------|----------|
-| Dubin | 主编排者 | 和用户对话、澄清问题、拆解任务、汇总结果 |
-| Archimedes | 研究设计师 | PICO、FINER、研究类型、样本量、偏倚控制 |
-| IRBer | 计划审查员 | 方案质量、伦理风险、可行性预审 |
-| Pubmeder | 文献搜索员 | PubMed/CNKI/Cochrane/Exa/Consensus 检索思路 |
-| SPSSer | 统计分析师 | SAP、R 分析、诊断、敏感性分析 |
-| Writer | 论文写作者 | 中英文初稿、结构化写作、参考文献审计 |
-| Submitter | 投稿协调员 | 期刊匹配、投稿包、格式检查 |
-| EBMer | 方法学审稿人 | Sprint Contract、方法学盲审、主张证据一致性 |
-| Polisher | 逻辑审稿人 | 去 AI 味、逻辑链、语言质量和一致性 |
+**可选但推荐：**
 
-## 系统要求
+- R ≥ 4.3（统计分析阶段需要）
+- MCP 文献检索工具（PubMed、CNKI、Cochrane、Exa 等）
 
-- Bun >= 1.2
-- OpenCode CLI
-- Git
-- Node.js >= 20（多数情况下 Bun 环境已足够）
-- 可用的模型 provider，例如 `opencode-go`、`deepseek`、`qwen-bailian`、`minimax` 等
+---
 
-可选但推荐：
+## 快速开始
 
-- R >= 4.3，用于后续统计分析阶段
-- 文献检索相关 MCP 工具，例如 PubMed、CNKI、Exa、Consensus
-
-## 快速安装
-
-先全局安装 omo-sci CLI：
+**1. 安装 CLI：**
 
 ```bash
 bun install -g github:xxxxchaos/oh-my-sci
 ```
 
-如果安装后提示找不到 `omo-sci`，先把 Bun 的全局 bin 目录加入 PATH：
+如果提示找不到 `omo-sci` 命令：
 
 ```bash
 export PATH="$HOME/.bun/bin:$PATH"
 ```
 
-然后进入你要开展研究项目的目录，运行：
+**2. 进入你的研究项目目录，安装插件：**
 
 ```bash
+cd ~/my-research-project
 omo-sci install
 ```
 
-如果你的朋友不熟悉命令行，安装后直接运行向导：
-
-```bash
-omo-sci setup
-```
-
-向导会把安装、模型配置、状态检查、环境诊断和卸载放在一个菜单里。
-
-安装说明：
-
-- 默认会先用 `opencode-go` 生成一套可运行配置。
-- 如果你要指定自己的模型 provider，可以在安装后运行 `configure`。
-- `configure` 不带参数时会进入 provider/quota 选择向导。
-- 将来发布到 npm 后，同样可以使用 `bunx omo-sci install`。
-
-临时体验、不想全局安装时，也可以使用：
-
-```bash
-bunx github:xxxxchaos/oh-my-sci install
-```
-
-但 `bunx github:...` 不会把 `omo-sci` 注册到 PATH，后续命令也需要继续写完整的 `bunx github:xxxxchaos/oh-my-sci ...`。
-
-```bash
-omo-sci configure
-omo-sci configure --providers opencode-go,deepseek --quota 500000000
-```
-
-`configure` 参数说明：
-
-- `--providers`：你实际可用的模型 provider，逗号分隔。只配置自己能调用的 provider。
-- `--quota`：月 token 配额，用于本地用量提醒。
-
-安装时会打印一张模型分配表，例如：
-
-```text
-模型分配计划（将写入 .opencode/agents/*.md）:
-  Agent        Category              Primary model                    Fallback
-  dubin        agent-orchestration   opencode-go/qwen3.7-max          deepseek/deepseek-v4-pro
-  archimedes   deep-reasoning        deepseek/deepseek-v4-pro         opencode-go/qwen3.7-max
-```
-
-这张表很重要：OpenCode 实际运行 agent 时读取的是当前项目 `.opencode/agents/*.md` 里的 `model` / `model_fallback`，不是只看全局配置文件。
-
-## 验证安装
-
-安装完成后先运行：
-
-```bash
-omo-sci doctor
-omo-sci doctor --models
-```
-
-`doctor --models` 会检查当前项目 agent 文件里的模型链，是否都出现在 omo-sci 配置中。如果看到某个 agent 引用了你没有配置的模型，建议重新运行 install 并调整 `--providers`。
-
-也可以检查 OpenCode 是否能看到 agent：
-
-```bash
-opencode agent list
-```
-
-你应该能看到 `dubin`、`archimedes`、`irber`、`pubmeder`、`spsser`、`writer`、`submitter`、`ebmer`、`polisher`。
-
-也可以直接查看和切换各 agent 的模型：
-
-```bash
-omo-sci agent                 # 查看 9 个 agent 当前使用的模型
-omo-sci agent providers       # 按能力分类查看可用模型池
-omo-sci agent set spsser deepseek/deepseek-v4-pro   # 切换单个 agent
-omo-sci agent reset           # 恢复为默认分配
-```
-
-在 OpenCode TUI 中输入 `/sci-agent` 也可以直接查看和切换。
-
-## 开始一个研究项目
-
-进入你的研究项目目录，启动 OpenCode：
+**3. 启动 OpenCode，开始研究：**
 
 ```bash
 opencode .
 ```
 
-在 OpenCode 里输入：
+在 OpenCode 里输入 `/sci-start`，Dubin 会用中文引导你。例如你可以说：
 
-```text
-/sci-start
-```
+> 我想研究 ICU 脓毒性休克患者中，颈动脉多普勒指标联合被动抬腿试验预测液体反应性的准确性。
 
-Dubin 会用中文引导你描述临床问题，例如：
+接下来 Dubin 会逐步追问你的研究对象、干预方案、结局指标、数据条件等。
 
-```text
-我想研究 ICU 脓毒性休克患者中，颈动脉多普勒指标联合被动抬腿试验预测液体反应性的准确性。
-```
+**这 3 步就够你开始用了。** 下面的内容是进阶参考。
 
-接下来它会逐步追问研究对象、干预/暴露、对照、结局、数据条件、可行性和你希望先生成什么产物。
+---
 
-## 常用命令
+## Agent 团队
+
+| Agent | 角色 | 干什么 |
+|-------|------|--------|
+| Dubin | 主编排者 | 和你对话、澄清问题、拆解任务、汇总结果 |
+| Archimedes | 研究设计师 | PICO 框架、FINER 评估、研究类型、样本量、偏倚控制 |
+| IRBer | 计划审查员 | 方案质量、伦理风险、可行性预审 |
+| Pubmeder | 文献搜索员 | PubMed/CNKI/Cochrane/Exa/Consensus 多源检索 |
+| SPSSer | 统计分析师 | SAP 撰写、R 分析、诊断检查、敏感性分析 |
+| Writer | 论文写作者 | 中英文初稿、结构化写作、参考文献验证 |
+| Submitter | 投稿协调员 | 期刊匹配、投稿包、格式检查 |
+| EBMer | 方法学审稿人 | Sprint Contract 盲审、方法学与数据一致性 |
+| Polisher | 逻辑审稿人 | 去 AI 味、逻辑链、语言质量和一致性 |
+
+---
+
+## 核心命令速查
+
+### OpenCode 斜杠命令（在 OpenCode TUI 里输入）
 
 | 命令 | 用途 |
 |------|------|
-| `/sci-start` | 启动 Dubin 研究引擎 |
-| `/sci-status` | 查看当前项目 Passport / Boulder 状态 |
-| `/sci-usage` | 查看 token 用量和配额 |
+| `/sci-start` | 启动 Dubin 研究引擎，开始一个新项目 |
+| `/sci-status` | 查看当前项目进展（阶段、待办任务） |
 | `/sci-doctor` | 环境诊断 |
+| `/sci-agent` | 查看和切换各 agent 的模型 |
+| `/sci-usage` | 查看 token 用量 |
 
-CLI 也可以直接运行：
+### CLI 命令（在终端里输入）
 
-```bash
-omo-sci setup
-omo-sci start
-omo-sci status
-omo-sci config
-omo-sci usage
-omo-sci doctor --models
-omo-sci uninstall --dry-run
-omo-sci uninstall
-```
+| 命令 | 用途 |
+|------|------|
+| `omo-sci install` | 在当前目录安装插件 |
+| `omo-sci setup` | 向导菜单（安装、配置、诊断、卸载） |
+| `omo-sci agent` | **交互式面板** — 查看/切换 9 个 agent 的模型 |
+| `omo-sci doctor` | 环境诊断 |
+| `omo-sci doctor --models` | 检查 agent 模型链是否一致 |
+| `omo-sci configure --providers opencode-go,deepseek --quota 500000000` | 配置模型 provider |
+| `omo-sci status` | 查看项目状态 |
+| `omo-sci start` | 启动 Dubin 研究引擎 |
+| `omo-sci uninstall` | 卸载（先预览再确认） |
+| `omo-sci --version` | 查看版本号 |
 
-## 典型工作流
+---
 
-1. 安装 omo-sci 并确认模型配置。
-2. 用 `/sci-start` 启动 Dubin。
-3. 完成阶段 0：研究意图访谈和 PICO 澄清。
-4. 生成阶段 1：研究蓝图和方案审查意见。
-5. 进入阶段 2：统计分析计划和数据分析准备。
-6. 后续推进论文写作、审稿、润色和投稿准备。
+## 典型操作示例
 
-目前 beta 版本更适合先跑前几个阶段，重点观察访谈体验、研究蓝图质量、统计分析计划质量和模型配置体验。
-
-## 模型配置
-
-omo-sci 支持以下 provider：
-
-| Provider | 说明 |
-|----------|------|
-| `opencode-go` | OpenCode Go 包月/内置模型 |
-| `deepseek` | DeepSeek 官方或兼容 API |
-| `qwen-bailian` | 阿里百炼 Qwen |
-| `zhipu` | 智谱 |
-| `kimi` | Kimi |
-| `minimax` | MiniMax |
-| `tencent-hy` | 腾讯混元 |
-
-如果只想用一个 provider，例如只用 Qwen：
+### 安装后验证一切正常
 
 ```bash
-omo-sci configure --providers qwen-bailian --quota 500000000
+# 确认版本
+omo-sci --version
+
+# 环境诊断
+omo-sci doctor
+
+# 检查 agent 模型配置
+omo-sci agent
+
+# 确认 OpenCode 能看到 9 个 agent
+opencode agent list | grep -E "dubin|archimedes|irber|pubmeder|spsser|writer|submitter|ebmer|polisher"
 ```
 
-这样 9 个 agent 都会写入 Qwen 模型，不会默认去调用 DeepSeek 或其他 provider。
+### 切换 agent 模型
+
+```bash
+# 进入交互面板（推荐，数字选择）
+omo-sci agent
+
+# 或直接命令行切换
+omo-sci agent set dubin deepseek/deepseek-v4-pro    # 单个切换
+omo-sci agent set all opencode-go/qwen3.7-max        # 全部切换
+omo-sci agent reset                                   # 恢复默认
+```
+
+### 配置模型 provider
+
+```bash
+# 指定你实际拥有的 provider
+omo-sci configure --providers opencode-go,deepseek --quota 500000000
+```
+
+omo-sci 会自动从 OpenCode 已登录的 provider 中读取可用模型，所以即使只配了 `opencode-go`，面板里也能看到 DeepSeek、Kimi、智谱等直接 API 模型（标注为"需先配置"）。
+
+### 完整研究流程
+
+```bash
+# 1. 创建研究目录
+mkdir sepsis-study && cd sepsis-study
+
+# 2. 安装 omo-sci
+omo-sci install
+
+# 3. 启动 OpenCode
+opencode .
+
+# 4. TUI 中输入 /sci-start，Dubin 开始访谈
+# 5. 完成阶段 0（意图访谈）→ 阶段 1（研究设计）→ 阶段 2（分析）...
+```
+
+---
 
 ## 卸载
 
-在安装 omo-sci 的项目目录里运行：
-
 ```bash
-omo-sci uninstall
+omo-sci uninstall          # 预览后确认
+omo-sci uninstall --yes    # 一键卸载
+omo-sci uninstall --dry-run # 只预览不删除
 ```
 
-它会先显示将删除/更新哪些文件，再要求确认。想先预览不删除：
+卸载会删除 omo-sci 生成的 agent/command 文件和全局配置，保留你的研究数据和 Dubin 记忆。
 
-```bash
-omo-sci uninstall --dry-run
-```
+---
 
-一键确认卸载：
+## 当前限制
 
-```bash
-omo-sci uninstall --yes
-```
+- **beta 阶段** — 适合实测和反馈，不建议直接用于正式伦理提交或未复核的论文投稿
+- `doctor --models` 是静态检查，不发起真实 API 请求
+- MCP 工具（文献数据库等）依赖你的本机配置
+- 生成的所有内容（方案、统计、论文）必须由研究者复核
+- IRBer/EBMer 的意见不是正式伦理批准
 
-默认卸载内容：
+---
 
-- 删除全局配置 `~/.config/opencode/omo-sci.jsonc`
-- 删除当前项目中 omo-sci 生成的 `.opencode/agents/*.md`
-- 删除当前项目中 omo-sci 生成的 `.opencode/commands/*.md`
-- 从当前项目 `opencode.json` 中移除 `plugin: "omo-sci"`
-- 保留 Dubin 进化记忆目录；如需同时删除，加 `--profile`
+## 反馈
 
-更多说明见：
+这是一个面向真实医学科研场景的早期项目。欢迎反馈任何体验问题：
+
+- 哪一步卡住了？
+- Dubin 问得是否清楚？
+- 研究蓝图像不像真实可执行的方案？
+- agent 的模型配置或调用体验哪里不顺？
+
+如果你跑出了一个测试项目，建议记录：安装命令、provider、OpenCode 版本、卡住的地方、生成的关键文件和你觉得最需要改进的地方。
+
+---
+
+## 更多文档
 
 - [安装指南](docs/guide/installation.md)
 - [模型配置指南](docs/guide/model-setup.md)
 - [快速开始](docs/guide/quickstart.md)
 - [贡献者](CONTRIBUTORS.md)
-
-## 当前限制
-
-- `doctor --models` 当前是静态检查，不会默认发起真实 API 请求；它能发现配置不一致，但不能保证远端 API 当前一定可用。
-- MCP 工具和数据库检索能力依赖你的本机 OpenCode/MCP 配置。
-- 生成的研究方案、统计分析计划和论文内容必须由研究者复核。
-- IRBer / EBMer 的意见不是正式伦理批准，也不能替代真实 IRB / Ethics Committee 审查。
-- 本项目不提供临床诊疗建议，不应用于临床决策。
-
-## 开发
-
-```bash
-bun install
-bun run typecheck
-bun test
-```
-
-项目结构：
-
-```text
-omo-sci/
-├── src/          # 插件源码
-├── bin/          # CLI 入口
-├── .opencode/    # OpenCode agent/command 定义
-├── docs/         # 文档
-└── references/   # 医学科研领域知识参考
-```
-
-## 反馈
-
-这是一个面向真实医学科研场景的早期 beta。欢迎反馈：
-
-- 哪个阶段卡住了？
-- Dubin 问得是否清楚？
-- 研究蓝图是否像真实可执行方案？
-- 统计分析计划是否足够严谨？
-- 哪个 agent 的模型配置或调用体验不顺？
-
-如果你在本地跑出了一个测试项目，建议记录：安装命令、provider、OpenCode 版本、卡住的步骤、生成的关键文件和你认为最需要改进的地方。
