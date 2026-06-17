@@ -1,5 +1,27 @@
 # Changelog
 
+## v0.1.16 (2026-06-17)
+
+- REQ-01: Pubmeder 两阶段搜索 — 阶段0快速摸底(MiniMax M3) + 阶段1深度检索(Kimi K2.6)
+- REQ-02: 编排层 Max→Plus — Dubin/IRBer/Submitter 默认用 Qwen 3.7 Plus
+- REQ-03: `doctor --models` 增加模型版本检查，自动提示可用升级
+
+## v0.1.15 (2026-06-17)
+
+- P0-1 (ISSUE-04): Provider 名称映射 — 写入 agent .md 时自动转换缩写为 auth.json 实际名
+- P0-2 (ISSUE-02): Dubin 透明度规则 — IRON RULES 新增第8条"如实报告执行路径"
+- P1 (REQ-04): Kimi K2.7 Code 过滤 — 非编程 agent 禁止，编排层警告
+- chinese-writing 默认升级为 GLM-5.2
+
+## v0.1.14 (2026-06-17)
+
+- CJK 排版改用两行格式（纯 ASCII agent 名 + 缩进中文）
+- isCustom 改为检测 model_fallback 是否存在
+
+## v0.1.13 (2026-06-17)
+
+- 面板宽度 56→64，agent 排序与 1-9 数字一致，已自定义 agent 前显示 ✓
+
 ## v0.1.12 (2026-06-17)
 
 - 修复 omo-sci 只读取自己配置中的 provider、忽略 OpenCode 已登录 provider 的问题
