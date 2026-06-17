@@ -10,7 +10,8 @@ import { join } from 'node:path';
 import { loadConfig } from '../config';
 import { extractAgentModels, AGENT_CATEGORIES, applyAgentModelPlan, modelKey } from '../model-config';
 import { AGENT_DISPLAY_NAMES, CATEGORY_LABELS } from '../router/categories';
-import type { AgentName, CapabilityCategory } from '../types';
+import { PROVIDER_REGISTRY } from '../router/provider';
+import type { AgentName, CapabilityCategory, ProviderId } from '../types';
 
 // ====================================================================
 // 类型
@@ -433,6 +434,8 @@ export function collectAllModels(): { key: string; provider: string; id: string 
   const config = loadConfig();
   const seen = new Set<string>();
   const models: { key: string; provider: string; id: string }[] = [];
+
+  // 1. 从配置的 fallback_chain 收集
   for (const catConfig of Object.values(config.router.categories)) {
     for (const spec of catConfig.fallback_chain) {
       const key = modelKey(spec);
@@ -442,6 +445,21 @@ export function collectAllModels(): { key: string; provider: string; id: string 
       }
     }
   }
+
+  // 2. 从 PROVIDER_REGISTRY 补充——用户配置的 provider 下所有模型都展示，即使未写入某个分类的 fallback_chain
+  const configuredProviders = collectConfiguredProviders();
+  for (const providerId of configuredProviders) {
+    const entry = PROVIDER_REGISTRY[providerId as ProviderId];
+    if (!entry) continue;
+    for (const spec of entry.models) {
+      const key = modelKey(spec);
+      if (!seen.has(key)) {
+        seen.add(key);
+        models.push({ key, provider: spec.provider, id: spec.model_id });
+      }
+    }
+  }
+
   return models;
 }
 
