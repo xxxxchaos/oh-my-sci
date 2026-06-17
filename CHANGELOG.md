@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.1.8 (2026-06-17)
+
+- 新增 `omo-sci --version` / `-v` / `version` 查看版本号
+- `omo-sci agent` 交互式面板重构：
+  - 无子命令时进入全屏信息面板（agent 分配表 + providers + quota 一目了然）
+  - 按数字 [1-9] 选择 agent → 进入模型选择面板（含中文模型描述和推荐说明）
+  - [A] 全部切换、[R] 恢复默认、[P] 查看模型池、[Q] 退出
+  - 每个模型附带中文描述（优势 + 注意事项），帮助初学者选型
+  - 非交互环境自动降级为简洁表格输出
+- `omo-sci agent set/reset/providers` 子命令保留为高级用法
+
 ## v0.1.7 (2026-06-17)
 
 - 新增 `omo-sci agent` 命令：一站式查看和切换 agent 模型分配
