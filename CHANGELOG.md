@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.1.11 (2026-06-17)
+
+- 模型选择面板重构为两层：第一层选模型族（按 model_id 去重），第二层选 provider 来源
+- 新增翻页支持（每页 5 个模型，N 下一页 / P 上一页）
+- 未配置 provider 的模型也会显示，标注"需先运行 omo-sci configure"
+- 修复只有已配置 provider 模型才显示的问题——现在展示 PROVIDER_REGISTRY 全部模型
+
+## v0.1.10 (2026-06-17)
+
+- 修复直连 API 模型不显示的问题——collectAllModels 补充 PROVIDER_REGISTRY 完整模型
+
 ## v0.1.9 (2026-06-17)
 
 - 修复同一模型多个 provider 的识别问题（如 deepseek-v4-pro 可来自 opencode-go 订阅或 deepseek API）
