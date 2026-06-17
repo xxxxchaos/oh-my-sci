@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.1.7 (2026-06-17)
+
+- 新增 `omo-sci agent` 命令：一站式查看和切换 agent 模型分配
+  - `omo-sci agent` — 查看 9 个 agent 的当前模型、分类和 fallback 链
+  - `omo-sci agent providers` — 按能力分类列出可用模型池
+  - `omo-sci agent set <agent> <model>` — 切换单个 agent 的模型
+  - `omo-sci agent set all <model>` — 全部切为同一模型
+  - `omo-sci agent reset` — 恢复为分类路由默认分配
+- 新增 `/sci-agent` OpenCode 命令：在 TUI 中查看和切换 agent 模型
+- 新增项目级 `CLAUDE.md`：迭代工作流规则，确保 CHANGELOG/log/handoff 及时更新
+
 ## v0.1.6 (2026-06-17)
 
 - 推荐安装方式改为全局安装：`bun install -g github:xxxxchaos/oh-my-sci`
