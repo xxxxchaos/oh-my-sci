@@ -16,6 +16,7 @@ import { formatUsageBar, getUsageInfo } from "../src/commands/sci-usage";
 import { sciStart } from "../src/commands/sci-start";
 import { getProjectStatus, formatProjectStatus } from "../src/commands/sci-status";
 import type { ProviderId } from "../src/types";
+import * as path from "node:path";
 
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
@@ -86,7 +87,7 @@ async function handleInstall(args: string[]): Promise<void> {
   if (options.projectDir) installConfig.projectDir = options.projectDir;
 
   const configPath = await install(options, installConfig);
-  console.log(`安装完成。配置文件: ${configPath}`);
+  printInstallLocations("安装完成", configPath, options.projectDir);
   console.log("如需调整模型 provider，可运行: omo-sci configure --providers <list> --quota <tokens>");
 }
 
@@ -107,7 +108,17 @@ async function handleConfigure(args: string[]): Promise<void> {
   if (options.projectDir) installConfig.projectDir = options.projectDir;
 
   const configPath = await install(options, installConfig);
-  console.log(`配置完成。配置文件: ${configPath}`);
+  printInstallLocations("配置完成", configPath, options.projectDir);
+}
+
+function printInstallLocations(prefix: string, configPath: string, projectDirOption?: string): void {
+  const projectDir = path.resolve(projectDirOption ?? process.cwd());
+  console.log(`${prefix}:`);
+  console.log(`  全局配置: ${configPath}`);
+  console.log(`  项目目录: ${projectDir}`);
+  console.log(`  OpenCode 项目配置: ${path.join(projectDir, "opencode.json")}`);
+  console.log(`  命令目录: ${path.join(projectDir, ".opencode", "commands")}`);
+  console.log(`  Agent 目录: ${path.join(projectDir, ".opencode", "agents")}`);
 }
 
 async function handleDoctor(args: string[]): Promise<void> {
