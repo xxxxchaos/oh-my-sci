@@ -85,7 +85,7 @@ permission:
 
     expect(rewritten).toContain('model: zhipuai-coding-plan/glm-5.2');
     expect(rewritten).toContain('model_fallback:');
-    expect(rewritten).toContain('minimax-cn-coding-plan/minimax-m3');
+    expect(rewritten).toContain('minimax-cn-coding-plan/MiniMax-M3');
     expect(rewritten).not.toContain('zhipu/glm-5.2');
     expect(rewritten).not.toContain('minimax/minimax-m3');
   });
@@ -107,6 +107,35 @@ model: deepseek/deepseek-v4-pro
       const results = checkInstalledAgentModels(tmpDir, testConfig());
       expect(results[0]?.status).toBe('warn');
       expect(results[0]?.message).toContain('未出现在 omo-sci 配置');
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('checkInstalledAgentModels 接受 OpenCode auth provider 名', () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), 'omo-sci-model-auth-check-'));
+    try {
+      const agentsDir = join(tmpDir, '.opencode', 'agents');
+      mkdirSync(agentsDir, { recursive: true });
+      writeFileSync(join(agentsDir, 'writer.md'), `---
+description: "test"
+mode: subagent
+model: qwen-bailian/qwen3.7-max
+model_fallback: ["zhipuai-coding-plan/glm-5.2", "minimax-cn-coding-plan/MiniMax-M3"]
+---
+
+# Prompt
+`);
+
+      const config = testConfig();
+      config.router.categories['chinese-writing'].fallback_chain = [
+        { provider: 'qwen-bailian', model_id: 'qwen3.7-max', context_window: 1_000_000, max_output: 128_000 },
+        { provider: 'zhipu', model_id: 'glm-5.2', context_window: 1_000_000, max_output: 128_000 },
+        { provider: 'minimax', model_id: 'minimax-m3', context_window: 1_000_000, max_output: 128_000 },
+      ];
+
+      const results = checkInstalledAgentModels(tmpDir, config);
+      expect(results[0]?.status).toBe('ok');
     } finally {
       rmSync(tmpDir, { recursive: true, force: true });
     }

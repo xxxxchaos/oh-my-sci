@@ -66,12 +66,13 @@ describe("Phase 1 Integration", () => {
       expect(providers).toContain("minimax");
     });
 
-    it("不同 category 共享同一 fallback_chain", () => {
-      const config = generateConfig(["deepseek"], 500000000, true);
+    it("不同 category 按任务类型排序 fallback_chain", () => {
+      const config = generateConfig(["opencode-go"], 500000000, true);
       const chainA = resolveFallbackChain("deep-reasoning", config.router);
-      const chainB = resolveFallbackChain("chinese-writing", config.router);
+      const chainB = resolveFallbackChain("fast-search", config.router);
 
-      expect(chainA).toEqual(chainB);
+      expect(chainA[0]?.model_id).toBe("deepseek-v4-pro");
+      expect(chainB[0]?.model_id).toBe("minimax-m3");
     });
 
     it("generateConfig + loadConfig 配合使用", () => {

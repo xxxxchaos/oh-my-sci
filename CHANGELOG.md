@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.1.17 (2026-06-18)
+
+- 修复 v0.1.16 推荐模型只停留在文案的问题：`generateConfig()` 现在按能力分类推荐矩阵排序 fallback chain
+- 默认 `opencode-go` 安装时，Dubin/IRBer/Submitter 使用 `qwen3.7-plus`，Pubmeder 使用 `minimax-m3 -> kimi-k2.6`
+- 注册 Kimi K2.6，并从非编程 agent 默认链中移除 `kimi-k2.7-code`
+- `doctor --models` 现在同时识别 omo-sci 内部 provider 名和 OpenCode auth provider 名，修复 `zhipuai-coding-plan` / `minimax-cn-coding-plan` 误报
+- 模型版本检查改为按 agent/category 限定，`qwen3.7-max -> qwen3.7-plus` 只对编排层提示
+- 更新 `.opencode/agents/*.md` 默认 frontmatter，并增加测试锁定 v0.1.17 推荐路由
+
 ## v0.1.16 (2026-06-17)
 
 - REQ-01: Pubmeder 两阶段搜索 — 阶段0快速摸底(MiniMax M3) + 阶段1深度检索(Kimi K2.6)

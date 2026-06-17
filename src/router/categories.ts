@@ -28,10 +28,18 @@ export const AGENT_DISPLAY_NAMES: Record<AgentName, string> = {
 };
 
 export const DEFAULT_FALLBACK_ORDERS: Record<CapabilityCategory, string[]> = {
-  'agent-orchestration': ['qwen3.7-max', 'deepseek-v4-pro', 'kimi-k2.7-code'],
-  'deep-reasoning': ['deepseek-v4-pro', 'qwen3.7-max', 'kimi-k2.7-code'],
-  'chinese-writing': ['glm-5.2', 'qwen3.7-max', 'hy3'],
-  'fast-search': ['minimax-m3', 'kimi-k2.7-code', 'deepseek-v4-flash'],
+  'agent-orchestration': ['qwen3.7-plus', 'deepseek-v4-pro', 'qwen3.7-max'],
+  'deep-reasoning': ['deepseek-v4-pro', 'qwen3.7-max', 'qwen3.7-plus'],
+  'chinese-writing': ['glm-5.2', 'qwen3.7-plus', 'deepseek-v4-pro', 'hy3'],
+  'fast-search': ['minimax-m3', 'kimi-k2.6', 'deepseek-v4-flash'],
   'long-context': ['minimax-m3', 'glm-5.2', 'qwen3.7-max', 'deepseek-v4-pro'],
   'methodical-review': ['deepseek-v4-pro', 'qwen3.7-max'],
+};
+
+export const DEFAULT_MODEL_DENYLIST: Partial<Record<CapabilityCategory, string[]>> = {
+  'agent-orchestration': ['kimi-k2.7-code'],
+  'chinese-writing': ['kimi-k2.7-code'],
+  'fast-search': ['kimi-k2.7-code'],
+  'long-context': ['kimi-k2.7-code'],
+  'methodical-review': ['kimi-k2.7-code'],
 };

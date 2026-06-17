@@ -7,12 +7,19 @@
 
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { AGENT_CATEGORIES } from '../model-config';
+import type { AgentName } from '../types';
 
 /** 模型最新版本注册表 */
-export const LATEST_MODEL_VERSIONS: Record<string, { latest: string; released: string; note: string }> = {
+export const LATEST_MODEL_VERSIONS: Record<string, { latest: string; released: string; note: string; categories?: string[] }> = {
   'glm-5.1': { latest: 'glm-5.2', released: '2026-06-13', note: 'Code V3 全球第三，编码能力质变，1M 上下文。建议升级。' },
   'glm-5': { latest: 'glm-5.2', released: '2026-06-13', note: '已更新两代，建议直接升级到 GLM-5.2。' },
-  'qwen3.7-max': { latest: 'qwen3.7-plus', released: '2026-05-20', note: 'Plus 版 Agent 能力持平、价格 1/6、支持视觉，编排层推荐切换。' },
+  'qwen3.7-max': {
+    latest: 'qwen3.7-plus',
+    released: '2026-05-20',
+    note: 'Plus 版 Agent 能力持平、价格 1/6、支持视觉，编排层推荐切换。',
+    categories: ['agent-orchestration'],
+  },
   'kimi-k2.7-code': { latest: 'kimi-k2.6', released: '2026-04-21', note: 'K2.7 是纯编程模型，非编程任务应使用 K2.6。' },
   // 无更高级版本的模型不在此列表中
 };
@@ -59,8 +66,9 @@ export function checkModelVersions(projectDir?: string): ModelVersionCheckResult
     const currentModel = modelMatch[1].trim();
     const currentVersion = extractModelId(currentModel);
     const entry = LATEST_MODEL_VERSIONS[currentVersion];
+    const category = AGENT_CATEGORIES[agent as AgentName];
 
-    if (!entry) {
+    if (!entry || (entry.categories && (!category || !entry.categories.includes(category)))) {
       // 无更高级版本，标记为 ok
       results.push({
         agent,

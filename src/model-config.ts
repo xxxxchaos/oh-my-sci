@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { AgentName, CapabilityCategory, ModelSpec, OmoSciConfig } from './types';
-import { toAuthModelKey } from './router/provider';
+import { canonicalModelKey, toAuthModelKey } from './router/provider';
 
 export interface AgentModelBinding {
   agent: AgentName;
@@ -105,11 +105,12 @@ export function checkInstalledAgentModels(
     return [{ agent: '*', status: 'error', message: `${agentsDir} 不存在，尚未安装 OpenCode agents` }];
   }
 
-  const allowedModels = new Set(
-    Object.values(config.router.categories)
-      .flatMap(category => category.fallback_chain)
-      .map(modelKey),
-  );
+  const allowedModels = new Set<string>();
+  for (const model of Object.values(config.router.categories).flatMap(category => category.fallback_chain)) {
+    const internalKey = modelKey(model);
+    allowedModels.add(canonicalModelKey(internalKey));
+    allowedModels.add(canonicalModelKey(toAuthModelKey(internalKey)));
+  }
 
   return readdirSync(agentsDir)
     .filter(file => file.endsWith('.md'))
@@ -122,7 +123,7 @@ export function checkInstalledAgentModels(
         return { agent, status: 'error', message: '缺少 model/model_fallback，OpenCode 将无法按计划路由' };
       }
 
-      const unknown = models.filter(model => !allowedModels.has(model));
+      const unknown = models.filter(model => !allowedModels.has(canonicalModelKey(model)));
       if (unknown.length > 0) {
         return {
           agent,

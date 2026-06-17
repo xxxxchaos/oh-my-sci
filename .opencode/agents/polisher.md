@@ -1,7 +1,7 @@
 ---
 description: "逻辑审稿人。逻辑链连贯性检查、去AI味扫描、语言质量审查。只读。"
 mode: subagent
-model: opencode-go/glm-5.1
+model: opencode-go/glm-5.2
 model_fallback: ["opencode-go/qwen3.7-max", "deepseek/deepseek-v4-pro"]
 permission:
   read: allow

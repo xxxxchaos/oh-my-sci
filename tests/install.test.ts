@@ -80,6 +80,16 @@ describe("generateConfig", () => {
     const plan = getInstallModelPlan();
     expect(plan).toContain(`${DEFAULT_INSTALL_PROVIDERS[0]}/`);
   });
+
+  it("默认 opencode-go 安装按 agent 任务推荐排序", () => {
+    const config = generateConfig(["opencode-go"], 500000000, true);
+
+    expect(config.router.categories["agent-orchestration"].fallback_chain[0]?.model_id).toBe("qwen3.7-plus");
+    expect(config.router.categories["fast-search"].fallback_chain[0]?.model_id).toBe("minimax-m3");
+    expect(config.router.categories["fast-search"].fallback_chain.map(model => model.model_id)).toContain("kimi-k2.6");
+    expect(config.router.categories["fast-search"].fallback_chain.map(model => model.model_id)).not.toContain("kimi-k2.7-code");
+    expect(config.router.categories["chinese-writing"].fallback_chain.map(model => model.model_id)).not.toContain("kimi-k2.7-code");
+  });
 });
 
 describe("install", () => {
@@ -243,7 +253,12 @@ describe("install", () => {
     expect(providers.every(provider => provider === DEFAULT_INSTALL_PROVIDERS[0])).toBe(true);
 
     const dubin = await Bun.file(join(tmpDir, ".opencode", "agents", "dubin.md")).text();
-    expect(dubin).toContain(`model: ${DEFAULT_INSTALL_PROVIDERS[0]}/`);
+    expect(dubin).toContain(`model: ${DEFAULT_INSTALL_PROVIDERS[0]}/qwen3.7-plus`);
+
+    const pubmeder = await Bun.file(join(tmpDir, ".opencode", "agents", "pubmeder.md")).text();
+    expect(pubmeder).toContain(`model: ${DEFAULT_INSTALL_PROVIDERS[0]}/minimax-m3`);
+    expect(pubmeder).toContain(`model_fallback: ["${DEFAULT_INSTALL_PROVIDERS[0]}/kimi-k2.6"`);
+    expect(pubmeder).not.toContain("kimi-k2.7-code");
   });
 
   it("should reject invalid provider", async () => {

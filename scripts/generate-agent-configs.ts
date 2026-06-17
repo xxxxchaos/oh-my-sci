@@ -45,12 +45,12 @@ const CATEGORY_DEFAULT_MODEL: Record<CapabilityCategory, string> = {
 
 // Fallback models: if the primary isn't available, try these
 const CATEGORY_FALLBACKS: Record<CapabilityCategory, string[]> = {
-  'agent-orchestration': ['deepseek/deepseek-v4-pro', 'opencode-go/kimi-k2.7-code'],
-  'deep-reasoning': ['opencode-go/qwen3.7-max', 'opencode-go/kimi-k2.7-code'],
+  'agent-orchestration': ['deepseek/deepseek-v4-pro', 'opencode-go/qwen3.7-max'],
+  'deep-reasoning': ['opencode-go/qwen3.7-max', 'opencode-go/qwen3.7-plus'],
   'chinese-writing': ['opencode-go/qwen3.7-max', 'deepseek/deepseek-v4-pro'],
-  'fast-search': ['opencode-go/kimi-k2.7-code', 'deepseek/deepseek-v4-flash'],
+  'fast-search': ['opencode-go/kimi-k2.6', 'deepseek/deepseek-v4-flash'],
   'long-context': ['opencode-go/glm-5.1', 'opencode-go/qwen3.7-max'],
-  'methodical-review': ['opencode-go/qwen3.7-max', 'opencode-go/kimi-k2.7-code'],
+  'methodical-review': ['opencode-go/qwen3.7-max', 'opencode-go/qwen3.7-plus'],
 };
 
 const agents: AgentDef[] = [

@@ -2,7 +2,7 @@
  * categories.ts 测试
  */
 import { describe, it, expect } from 'bun:test';
-import { CATEGORY_LABELS, AGENT_DISPLAY_NAMES, DEFAULT_FALLBACK_ORDERS } from '../../src/router/categories';
+import { CATEGORY_LABELS, AGENT_DISPLAY_NAMES, DEFAULT_FALLBACK_ORDERS, DEFAULT_MODEL_DENYLIST } from '../../src/router/categories';
 import type { CapabilityCategory, AgentName } from '../../src/types';
 
 describe('categories', () => {
@@ -50,6 +50,15 @@ describe('categories', () => {
       for (const [category, models] of Object.entries(DEFAULT_FALLBACK_ORDERS)) {
         expect(models.length).toBeGreaterThanOrEqual(2);
       }
+    });
+
+    it('默认推荐矩阵符合 v0.1.17 医学科研策略', () => {
+      expect(DEFAULT_FALLBACK_ORDERS['agent-orchestration'][0]).toBe('qwen3.7-plus');
+      expect(DEFAULT_FALLBACK_ORDERS['fast-search'][0]).toBe('minimax-m3');
+      expect(DEFAULT_FALLBACK_ORDERS['fast-search']).toContain('kimi-k2.6');
+      expect(DEFAULT_FALLBACK_ORDERS['fast-search']).not.toContain('kimi-k2.7-code');
+      expect(DEFAULT_FALLBACK_ORDERS['chinese-writing']).not.toContain('kimi-k2.7-code');
+      expect(DEFAULT_MODEL_DENYLIST['fast-search']).toContain('kimi-k2.7-code');
     });
   });
 });

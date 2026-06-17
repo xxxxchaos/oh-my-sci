@@ -20,6 +20,12 @@ describe('provider', () => {
     it('qwen-bailian 包含 1 个模型', () => {
       expect(PROVIDER_REGISTRY['qwen-bailian']!.models.length).toBe(1);
     });
+
+    it('Kimi 注册 K2.6 和 K2.7 Code', () => {
+      const modelIds = PROVIDER_REGISTRY['kimi']!.models.map(model => model.model_id);
+      expect(modelIds).toContain('kimi-k2.6');
+      expect(modelIds).toContain('kimi-k2.7-code');
+    });
   });
 
   describe('PROVIDER_TO_AUTH_NAME', () => {
@@ -48,7 +54,7 @@ describe('provider', () => {
     });
 
     it('转换 minimax 内部 provider 为 auth 名', () => {
-      expect(toAuthModelKey('minimax/minimax-m3')).toBe('minimax-cn-coding-plan/minimax-m3');
+      expect(toAuthModelKey('minimax/minimax-m3')).toBe('minimax-cn-coding-plan/MiniMax-M3');
     });
 
     it('转换 kimi 内部 provider 为 auth 名', () => {

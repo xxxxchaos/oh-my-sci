@@ -28,9 +28,25 @@ export function toAuthModelKey(internalKey: string): string {
   const parts = internalKey.split('/');
   if (parts.length === 2) {
     const authProvider = PROVIDER_TO_AUTH_NAME[parts[0]] ?? parts[0];
-    return `${authProvider}/${parts[1]}`;
+    const authModel = parts[0] === 'minimax' && parts[1].toLowerCase() === 'minimax-m3'
+      ? 'MiniMax-M3'
+      : parts[1];
+    return `${authProvider}/${authModel}`;
   }
   return internalKey;
+}
+
+/**
+ * 将模型键转成用于比较的 canonical key。
+ * OpenCode agent 文件可能使用 auth provider 名和 provider 原始大小写。
+ */
+export function canonicalModelKey(modelKey: string): string {
+  const parts = modelKey.trim().split('/');
+  if (parts.length !== 2) return modelKey.trim().toLowerCase();
+  const provider = parts[0];
+  const internalProvider =
+    Object.entries(PROVIDER_TO_AUTH_NAME).find(([, authName]) => authName === provider)?.[0] ?? provider;
+  return `${internalProvider.toLowerCase()}/${parts[1].toLowerCase()}`;
 }
 
 export const PROVIDER_REGISTRY: Partial<Record<ProviderId, {
@@ -53,8 +69,11 @@ export const PROVIDER_REGISTRY: Partial<Record<ProviderId, {
     models: [{ provider: 'zhipu', model_id: 'glm-5.2', context_window: 1_000_000, max_output: 128_000 }],
   },
   'kimi': {
-    name: 'Kimi 开放平台 (Kimi K2.7)',
-    models: [{ provider: 'kimi', model_id: 'kimi-k2.7-code', context_window: 256_000, max_output: 128_000 }],
+    name: 'Kimi 开放平台',
+    models: [
+      { provider: 'kimi', model_id: 'kimi-k2.6', context_window: 256_000, max_output: 128_000 },
+      { provider: 'kimi', model_id: 'kimi-k2.7-code', context_window: 256_000, max_output: 128_000 },
+    ],
   },
   'minimax': {
     name: 'MiniMax (Token Plan / API)',
@@ -72,6 +91,7 @@ export const PROVIDER_REGISTRY: Partial<Record<ProviderId, {
       { provider: 'opencode-go', model_id: 'deepseek-v4-pro', context_window: 1_000_000, max_output: 128_000 },
       { provider: 'opencode-go', model_id: 'glm-5.1', context_window: 1_000_000, max_output: 128_000 },
       { provider: 'opencode-go', model_id: 'glm-5.2', context_window: 1_000_000, max_output: 128_000 },
+      { provider: 'opencode-go', model_id: 'kimi-k2.6', context_window: 256_000, max_output: 128_000 },
       { provider: 'opencode-go', model_id: 'kimi-k2.7-code', context_window: 256_000, max_output: 128_000 },
       { provider: 'opencode-go', model_id: 'minimax-m3', context_window: 1_000_000, max_output: 128_000 },
       { provider: 'opencode-go', model_id: 'deepseek-v4-flash', context_window: 1_000_000, max_output: 128_000 },

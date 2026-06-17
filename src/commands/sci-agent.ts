@@ -366,6 +366,12 @@ export const MODEL_DESCRIPTIONS: Record<string, {
     strengths: '中文写作最优，MIT 开源，1M 上下文',
     caveats: '模型响应延迟较高(30-60s)',
   },
+  'opencode-go/kimi-k2.6': {
+    desc: 'Kimi K2.6 长文档模型（通过 Go 订阅）',
+    providerDesc: '来源: OpenCode Go 订阅（月费 ¥72，配额内不限量）',
+    strengths: '长文档分析和多步工具调用成熟，适合 Pubmeder 深度系统检索',
+    caveats: '上下文 256K，极长全文批量分析需分批处理',
+  },
   'opencode-go/kimi-k2.7-code': {
     desc: 'Kimi K2.7 编程模型（通过 Go 订阅）',
     providerDesc: '来源: OpenCode Go 订阅（月费 ¥72，配额内不限量）',
@@ -405,6 +411,12 @@ export const MODEL_DESCRIPTIONS: Record<string, {
     providerDesc: '来源: Kimi 开放平台（按量计费 $0.95/M 输入）',
     strengths: '价格是 GPT-5.5 的 1/5，MCP 工具调用出色',
     caveats: '上下文仅256K',
+  },
+  'kimi/kimi-k2.6': {
+    desc: 'Kimi K2.6（官方 API）',
+    providerDesc: '来源: Kimi 开放平台（按量计费）',
+    strengths: '长文档分析和多步 Agent 任务更适合非编程检索场景',
+    caveats: '非订阅路径按量计费，批量检索前注意预算',
   },
   'zhipu/glm-5.2': {
     desc: '智谱 GLM-5.2（官方 API）',

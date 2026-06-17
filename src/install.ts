@@ -10,6 +10,7 @@ import * as fsSync from "node:fs";
 import { OMO_SCI_CONFIG_PATH, OPENCODE_CONFIG_DIR } from "./constants";
 import type { OmoSciConfig, ProviderId, CapabilityCategory } from "./types";
 import { PROVIDER_WHITELIST, getAvailableModels } from "./router/provider";
+import { DEFAULT_FALLBACK_ORDERS, DEFAULT_MODEL_DENYLIST } from "./router/categories";
 import {
   applyAgentModelPlan,
   buildAgentModelPlan,
@@ -21,6 +22,24 @@ import {
 export const VALID_QUOTAS = [200000000, 500000000, 1000000000] as const;
 export const DEFAULT_INSTALL_PROVIDERS: ProviderId[] = ['opencode-go'];
 export const DEFAULT_INSTALL_QUOTA = 500000000;
+
+function orderModelsForCategory(
+  category: CapabilityCategory,
+  models: OmoSciConfig['router']['categories'][CapabilityCategory]['fallback_chain'],
+): OmoSciConfig['router']['categories'][CapabilityCategory]['fallback_chain'] {
+  const order = DEFAULT_FALLBACK_ORDERS[category] ?? [];
+  const denied = new Set(DEFAULT_MODEL_DENYLIST[category] ?? []);
+  return [...models].filter(model => !denied.has(model.model_id)).sort((a, b) => {
+    const aIndex = order.indexOf(a.model_id);
+    const bIndex = order.indexOf(b.model_id);
+    const aRank = aIndex === -1 ? Number.MAX_SAFE_INTEGER : aIndex;
+    const bRank = bIndex === -1 ? Number.MAX_SAFE_INTEGER : bIndex;
+    if (aRank !== bRank) return aRank - bRank;
+    if (a.provider === 'opencode-go' && b.provider !== 'opencode-go') return -1;
+    if (a.provider !== 'opencode-go' && b.provider === 'opencode-go') return 1;
+    return 0;
+  });
+}
 
 // ====== 类型定义 ======
 
@@ -83,7 +102,7 @@ export function generateConfig(
   for (const cat of catIds) {
     categories[cat] = {
       category: cat,
-      fallback_chain: availableModels,
+      fallback_chain: orderModelsForCategory(cat, availableModels),
       concurrency_limit: cat === 'fast-search' ? 4 : 2,
     };
   }
