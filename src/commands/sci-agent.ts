@@ -5,10 +5,10 @@
  * 可在 CLI (`omo-sci agent`) 和 OpenCode (`/sci-agent`) 中复用。
  */
 
-import { readFileSync, existsSync, readdirSync } from 'node:fs';
+import { readFileSync, existsSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { loadConfig } from '../config';
-import { extractAgentModels, AGENT_CATEGORIES } from '../model-config';
+import { extractAgentModels, AGENT_CATEGORIES, applyAgentModelPlan } from '../model-config';
 import { AGENT_DISPLAY_NAMES, CATEGORY_LABELS } from '../router/categories';
 import type { AgentName, CapabilityCategory } from '../types';
 
@@ -73,6 +73,120 @@ export function getAgentStatus(projectDir?: string): AgentStatus[] {
         categoryLabel,
       };
     });
+}
+
+// ====================================================================
+// 模型切换
+// ====================================================================
+
+/**
+ * 切换单个 agent 的模型（或全部 agent 切换到同一模型）
+ *
+ * 读取 .opencode/agents/<agent>.md，替换 model: 行，清除 model_fallback: 行。
+ * agentName 为 'all' 时遍历全部 agent。
+ *
+ * @param agentName - agent 名（如 'dubin'）或 'all'
+ * @param model - 模型 ID（如 'opencode-go/deepseek-v4-pro'）
+ * @param projectDir - 项目目录（默认 process.cwd()）
+ */
+export function setAgentModel(
+  agentName: string,
+  model: string,
+  projectDir?: string,
+): { success: boolean; message: string } {
+  const dir = projectDir ?? process.cwd();
+  const agentsDir = join(dir, '.opencode', 'agents');
+
+  // 'all' 模式：遍历全部 agent
+  if (agentName === 'all') {
+    if (!existsSync(agentsDir)) {
+      return { success: false, message: `Agent 目录不存在: ${agentsDir}` };
+    }
+
+    const files = readdirSync(agentsDir).filter(f => f.endsWith('.md'));
+    if (files.length === 0) {
+      return { success: false, message: `Agent 目录中无 .md 文件: ${agentsDir}` };
+    }
+
+    const msgs: string[] = [];
+    for (const f of files) {
+      const name = f.replace(/\.md$/, '');
+      const r = setAgentModel(name, model, projectDir);
+      msgs.push(r.message);
+    }
+
+    return { success: true, message: msgs.join('\n') };
+  }
+
+  // 单 agent 模式
+  const filePath = join(agentsDir, `${agentName}.md`);
+
+  if (!existsSync(filePath)) {
+    return { success: false, message: `Agent 文件不存在: ${filePath}` };
+  }
+
+  const content = readFileSync(filePath, 'utf-8');
+
+  // 记录切换前的模型
+  const oldModels = extractAgentModels(content);
+  const oldStr = oldModels.length > 0 ? oldModels.join(' -> ') : '未配置';
+
+  // 检查 frontmatter 是否包含 model: 行
+  let newContent = content;
+
+  if (content.match(/^model:\s*.+$/m)) {
+    // 替换已有的 model: 行
+    newContent = newContent.replace(/^model:\s*.+$/m, `model: ${model}`);
+  } else {
+    // 无 model: 行，在 mode: 行后插入
+    newContent = newContent.replace(/^(mode:\s*.+)$/m, `$1\nmodel: ${model}`);
+  }
+
+  // 清除 model_fallback: 行（单模型切换时不需要 fallback）
+  newContent = newContent.replace(/^model_fallback:\s*\[.*\]\s*\n?/m, '');
+
+  writeFileSync(filePath, newContent, 'utf-8');
+
+  // 记录切换后
+  const newModels = extractAgentModels(newContent);
+  const newStr = newModels.length > 0 ? newModels.join(' -> ') : '未配置';
+
+  return {
+    success: true,
+    message: `Agent "${agentName}" 模型已更新:\n  之前: ${oldStr}\n  之后: ${newStr}`,
+  };
+}
+
+/**
+ * 恢复所有 agent 为按分类路由的默认模型分配
+ *
+ * 读取 ~/.config/opencode/omo-sci.jsonc 中的 router.categories，
+ * 按 AGENT_CATEGORIES 映射重新生成每个 agent 的 model/model_fallback，
+ * 写入所有 agent .md 文件，并返回更新后的 agent 表格。
+ *
+ * @param projectDir - 项目目录（默认 process.cwd()）
+ */
+export function resetAgentModels(
+  projectDir?: string,
+): { success: boolean; message: string; agentTable: string } {
+  const dir = projectDir ?? process.cwd();
+  const agentsDir = join(dir, '.opencode', 'agents');
+
+  if (!existsSync(agentsDir)) {
+    return { success: false, message: `Agent 目录不存在: ${agentsDir}`, agentTable: '' };
+  }
+
+  const config = loadConfig();
+  applyAgentModelPlan(agentsDir, config);
+
+  const statuses = getAgentStatus(projectDir);
+  const table = formatAgentTable(statuses);
+
+  return {
+    success: true,
+    message: '所有 agent 已恢复为按分类路由的默认模型分配。',
+    agentTable: table,
+  };
 }
 
 // ====================================================================

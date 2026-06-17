@@ -20,4 +20,19 @@ bun run bin/omo-sci.ts agent providers
 用中文向用户解释结果，特别是：
 - 当前各 agent 的模型是否可用
 - 哪些 agent 的模型不在 omo-sci 配置中（可能不可用）
-- 如何切换模型：`omo-sci configure --providers ...`
+- 如何切换模型
+
+**切换单个 agent 的模型：**
+```bash
+bun run bin/omo-sci.ts agent set dubin opencode-go/deepseek-v4-pro
+```
+
+**将所有 agent 切换为同一模型：**
+```bash
+bun run bin/omo-sci.ts agent set all opencode-go/deepseek-v4-pro
+```
+
+**恢复为默认分配（按分类路由）：**
+```bash
+bun run bin/omo-sci.ts agent reset
+```

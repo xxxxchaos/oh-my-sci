@@ -16,7 +16,7 @@ import { getStatus, formatStatus } from "../src/status";
 import { formatUsageBar, getUsageInfo } from "../src/commands/sci-usage";
 import { sciStart } from "../src/commands/sci-start";
 import { getProjectStatus, formatProjectStatus } from "../src/commands/sci-status";
-import { getAgentStatus, formatAgentTable, formatProviderList } from "../src/commands/sci-agent";
+import { getAgentStatus, formatAgentTable, formatProviderList, setAgentModel, resetAgentModels } from "../src/commands/sci-agent";
 import type { ProviderId } from "../src/types";
 import * as path from "node:path";
 import { PROVIDER_WHITELIST } from "../src/router/provider";
@@ -275,21 +275,65 @@ function handleStart(): void {
 function handleAgent(args: string[]): void {
   let projectDir: string | undefined;
 
+  // 提取 --project 和 --project-dir 选项，同时保留其他参数
+  const filteredArgs: string[] = [];
   for (let i = 0; i < args.length; i++) {
-    if (args[i] === "--project" && i + 1 < args.length) {
+    if ((args[i] === "--project" || args[i] === "--project-dir") && i + 1 < args.length) {
       projectDir = args[++i];
+    } else {
+      filteredArgs.push(args[i]);
     }
   }
 
-  const subcommand = args[0];
+  const sub = filteredArgs[0];
 
-  if (subcommand === "providers") {
+  // 无子命令或 list → 显示 agent 表格
+  if (!sub || sub === "list") {
+    const statuses = getAgentStatus(projectDir);
+    console.log(formatAgentTable(statuses));
+    return;
+  }
+
+  // providers → 列出可用模型
+  if (sub === "providers") {
     console.log(formatProviderList());
     return;
   }
 
-  const statuses = getAgentStatus(projectDir);
-  console.log(formatAgentTable(statuses));
+  // set → 切换 agent 模型
+  if (sub === "set") {
+    const agent = filteredArgs[1];
+    const model = filteredArgs[2];
+    if (!agent || !model) {
+      console.error("用法: omo-sci agent set <agent|all> <model>");
+      console.error("示例: omo-sci agent set dubin opencode-go/deepseek-v4-pro");
+      console.error("      omo-sci agent set all opencode-go/qwen3.7-max");
+      process.exit(1);
+    }
+    const result = setAgentModel(agent, model, projectDir);
+    console.log(result.message);
+    if (result.success) {
+      console.log("\n更新后的分配:");
+      const statuses = getAgentStatus(projectDir);
+      console.log(formatAgentTable(statuses));
+    }
+    return;
+  }
+
+  // reset → 恢复默认分配
+  if (sub === "reset") {
+    const result = resetAgentModels(projectDir);
+    console.log(result.message);
+    if (result.agentTable) {
+      console.log(result.agentTable);
+    }
+    return;
+  }
+
+  // 未知子命令
+  console.error(`未知子命令: ${sub}`);
+  console.error("可用子命令: list, providers, set <agent|all> <model>, reset");
+  process.exit(1);
 }
 
 interface InstallArgs {
@@ -522,7 +566,10 @@ omo-sci — 医学科研 AI 智能体团队
   omo-sci status [选项]       查看项目 Passport/Boulder 状态
   omo-sci config              查看安装配置状态
   omo-sci usage               查看用量信息
-  omo-sci agent [providers]   查看/切换当前项目 agent 模型分配
+  omo-sci agent                   查看当前项目所有 agent 模型分配
+  omo-sci agent providers         查看可用 provider 和模型
+  omo-sci agent set <agent|all> <model>  切换单个或全部 agent 的模型
+  omo-sci agent reset             恢复为按分类路由的默认模型分配
   omo-sci start               启动 Dubin 研究引擎
   omo-sci --help              显示此帮助
 
@@ -556,9 +603,15 @@ doctor 选项:
 status 选项:
   --project <dir>             指定项目目录（默认当前目录）
 
-agent 选项:
+agent 子命令:
+  list                        列出各 agent 的模型分配（默认）
   providers                   列出 omo-sci 配置中各分类的可用模型
+  set <agent|all> <model>     切换单个或全部 agent 的模型
+  reset                       恢复为按分类路由的默认模型分配
+
+agent 选项:
   --project <dir>             指定项目目录（默认当前目录）
+  --project-dir <dir>         同上
 
 示例:
   omo-sci setup
@@ -569,6 +622,11 @@ agent 选项:
   omo-sci uninstall --yes
   omo-sci doctor --models
   omo-sci doctor
+  omo-sci agent
+  omo-sci agent providers
+  omo-sci agent set dubin opencode-go/deepseek-v4-pro
+  omo-sci agent set all opencode-go/qwen3.7-max
+  omo-sci agent reset
 `);
 }
 
