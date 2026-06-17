@@ -8,7 +8,7 @@
 import { readFileSync, existsSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { loadConfig } from '../config';
-import { extractAgentModels, AGENT_CATEGORIES, applyAgentModelPlan } from '../model-config';
+import { extractAgentModels, AGENT_CATEGORIES, applyAgentModelPlan, modelKey } from '../model-config';
 import { AGENT_DISPLAY_NAMES, CATEGORY_LABELS } from '../router/categories';
 import type { AgentName, CapabilityCategory } from '../types';
 
@@ -275,5 +275,362 @@ export function formatProviderList(): string {
 }
 
 function joinLines(lines: string[]): string {
+  return lines.join('\n');
+}
+
+// ====================================================================
+// 交互面板渲染
+// ====================================================================
+
+/** Agent 名称列表（显示顺序） */
+export const AGENT_NAMES: AgentName[] = [
+  'dubin', 'archimedes', 'irber', 'pubmeder', 'spsser',
+  'writer', 'submitter', 'ebmer', 'polisher',
+];
+
+/** 模型中文描述映射表 */
+export const MODEL_DESCRIPTIONS: Record<string, { desc: string; strengths: string; caveats: string }> = {
+  'opencode-go/qwen3.7-max': {
+    desc: '阿里千问旗舰模型',
+    strengths: 'Agent 稳定性国产最强，MCP-Atlas 76.4，35h 长链路不崩',
+    caveats: '闭源，输出偏冗长',
+  },
+  'deepseek/deepseek-v4-pro': {
+    desc: 'DeepSeek 旗舰推理模型',
+    strengths: '编程与数学推理国内最强，LiveCodeBench 93.5',
+    caveats: '跨领域综合推理(HLE)稍弱',
+  },
+  'opencode-go/glm-5.1': {
+    desc: '智谱 GLM 旗舰模型',
+    strengths: '中文写作最优，MIT 开源，1M 上下文',
+    caveats: '模型响应延迟较高(30-60s)',
+  },
+  'opencode-go/kimi-k2.7-code': {
+    desc: '月之暗面 Kimi 编程模型',
+    strengths: '性价比极高(输入$0.95/M)，MCP 工具调用出色',
+    caveats: '上下文仅256K',
+  },
+  'opencode-go/minimax-m3': {
+    desc: 'MiniMax 第三代旗舰模型',
+    strengths: '超长程韧性最强，月费包干 Token Plan',
+    caveats: '纯 benchmark 与 Claude 有差距',
+  },
+  'deepseek/deepseek-v4-flash': {
+    desc: 'DeepSeek 快速模型',
+    strengths: '速度极快，成本极低，适合高频简单任务',
+    caveats: '复杂推理能力有限',
+  },
+};
+
+// ====================================================================
+// 面板辅助 — 使用 CJK 视觉宽度进行对齐
+// ====================================================================
+
+const PANEL_W = 56;   // 面板总宽度（含边框）
+const CONTENT_W = PANEL_W - 2; // 两 ║ 之间内容宽度
+
+function visualLen(s: string): number {
+  let len = 0;
+  for (const ch of s) {
+    const code = ch.charCodeAt(0);
+    if ((code >= 0x4e00 && code <= 0x9fff) ||
+        (code >= 0x3000 && code <= 0x303f) ||
+        (code >= 0xff00 && code <= 0xffef)) {
+      len += 2;
+    } else {
+      len += 1;
+    }
+  }
+  return len;
+}
+
+function padVisual(s: string, targetW: number): string {
+  const cur = visualLen(s);
+  return cur >= targetW ? s : s + ' '.repeat(targetW - cur);
+}
+
+function boxTop(): string {
+  return '╔' + '═'.repeat(CONTENT_W) + '╗';
+}
+
+function boxBottom(): string {
+  return '╚' + '═'.repeat(CONTENT_W) + '╝';
+}
+
+function boxSep(): string {
+  return '╠' + '═'.repeat(CONTENT_W) + '╣';
+}
+
+function boxLine(s: string): string {
+  return '║' + padVisual(s, CONTENT_W) + '║';
+}
+
+function boxEmpty(): string {
+  return '║' + ' '.repeat(CONTENT_W) + '║';
+}
+
+/**
+ * collectAllModels — 从配置中收集所有唯一的模型键（去重，按分类顺序排列）
+ */
+export function collectAllModels(): { key: string; provider: string; id: string }[] {
+  const config = loadConfig();
+  const seen = new Set<string>();
+  const models: { key: string; provider: string; id: string }[] = [];
+  for (const catConfig of Object.values(config.router.categories)) {
+    for (const spec of catConfig.fallback_chain) {
+      const key = modelKey(spec);
+      if (!seen.has(key)) {
+        seen.add(key);
+        models.push({ key, provider: spec.provider, id: spec.model_id });
+      }
+    }
+  }
+  return models;
+}
+
+/**
+ * collectConfiguredProviders — 从配置中收集已配置的 provider ID（去重）
+ */
+function collectConfiguredProviders(): string[] {
+  const config = loadConfig();
+  const providerSet = new Set<string>();
+  for (const catConfig of Object.values(config.router.categories)) {
+    for (const spec of catConfig.fallback_chain) {
+      providerSet.add(spec.provider);
+    }
+  }
+  return Array.from(providerSet);
+}
+
+/**
+ * formatQuota — 格式化 token 配额为中文亿单位
+ */
+function formatQuota(quota: number): string {
+  return `${(quota / 100000000).toFixed(1)} 亿`;
+}
+
+/**
+ * findModelSpecByKey — 在所有分类中查找指定模型键的规格
+ */
+function findModelSpecByKey(key: string): { context_window: number; max_output: number; provider: string; model_id: string } | undefined {
+  const config = loadConfig();
+  const allSpecs = Object.values(config.router.categories).flatMap(c => c.fallback_chain);
+  return allSpecs.find(s => modelKey(s) === key);
+}
+
+// ====================================================================
+// 面板渲染函数
+// ====================================================================
+
+/**
+ * renderMainPanel — 首页信息面板
+ */
+export function renderMainPanel(projectDir?: string, version?: string): string {
+  const dir = projectDir ?? process.cwd();
+  const config = loadConfig();
+  const statuses = getAgentStatus(projectDir);
+  const v = version ? `v${version.replace(/^v/, '')}` : '';
+
+  const providers = collectConfiguredProviders().join(', ');
+  const quotaStr = formatQuota(config.usage.token_quota);
+
+  const lines: string[] = [];
+
+  lines.push(boxTop());
+  lines.push(boxLine(padVisual('omo-sci Agent 模型管理', CONTENT_W)));
+  lines.push(boxLine(padVisual(v, CONTENT_W)));
+  lines.push(boxSep());
+  lines.push(boxEmpty());
+  lines.push(boxLine(`  当前项目: ${dir}`));
+  lines.push(boxLine(providers ? `  已配置 providers: ${providers}` : '  未配置 providers'));
+  lines.push(boxLine(`  已配置 quota: ${quotaStr} tokens/月`));
+  lines.push(boxEmpty());
+
+  // Agent 模型分配内嵌框
+  const innerW = CONTENT_W - 4; // 左右各 2 空格缩进
+  const innerTitle = ' Agent 模型分配 ';
+  const innerTitleVis = visualLen(innerTitle);
+  const innerFill = Math.max(0, innerW - 4 - innerTitleVis);
+
+  lines.push(boxLine('  ┌─' + innerTitle + '─'.repeat(innerFill) + '┐  '));
+
+  if (statuses.length === 0) {
+    lines.push(boxLine('  │  （未发现 agent 文件）' + ' '.repeat(Math.max(0, innerW - 26)) + '│  '));
+  } else {
+    for (let i = 0; i < statuses.length; i++) {
+      const s = statuses[i];
+      const idx = String(i + 1);
+      const agentLine = `${idx}. ${s.agentName.padEnd(10)} ${s.categoryLabel.slice(0, 18).padEnd(18)} ${s.currentModel}`;
+      const innerContent = '  │  ' + padVisual(agentLine, innerW - 6) + '│  ';
+      lines.push(boxLine(innerContent));
+    }
+  }
+
+  lines.push(boxLine('  └' + '─'.repeat(innerW - 2) + '┘  '));
+  lines.push(boxEmpty());
+  lines.push(boxLine('  快捷操作:'));
+  lines.push(boxLine('  [1-9] 选择 agent 切换模型'));
+  lines.push(boxLine('  [A] 全部切换为同一模型'));
+  lines.push(boxLine('  [R] 恢复默认分配（按分类路由）'));
+  lines.push(boxLine('  [P] 查看可用模型池'));
+  lines.push(boxLine('  [Q] 退出'));
+  lines.push(boxEmpty());
+  lines.push(boxBottom());
+
+  return lines.join('\n');
+}
+
+/**
+ * renderModelPicker — 为指定 agent 显示模型选择面板
+ */
+export function renderModelPicker(agentName: string, projectDir?: string): string {
+  const config = loadConfig();
+  const statuses = getAgentStatus(projectDir);
+  const agent = statuses.find(s => s.agentName === agentName);
+  const displayName = AGENT_DISPLAY_NAMES[agentName as AgentName] ?? agentName;
+  const category = AGENT_CATEGORIES[agentName as AgentName];
+  const categoryLabel = category ? (CATEGORY_LABELS[category] ?? category) : '未知';
+  const currentModel = agent?.currentModel ?? '未配置';
+
+  // 收集可用模型（flat order, 与 collectAllModels 一致）
+  const allModels = collectAllModels();
+
+  const lines: string[] = [];
+  lines.push(boxTop());
+  lines.push(boxLine(padVisual(`  为 ${displayName} 选择模型`, CONTENT_W)));
+  lines.push(boxLine(padVisual(`  能力分类: ${categoryLabel}`, CONTENT_W)));
+  lines.push(boxLine(padVisual(`  当前模型: ${currentModel}`, CONTENT_W)));
+  lines.push(boxSep());
+  lines.push(boxEmpty());
+
+  if (allModels.length === 0) {
+    lines.push(boxLine(padVisual('  无可选模型（请先运行 omo-sci configure 配置模型）', CONTENT_W)));
+  } else {
+    lines.push(boxLine(padVisual('  可选模型:', CONTENT_W)));
+    lines.push(boxEmpty());
+
+    for (let i = 0; i < allModels.length; i++) {
+      const m = allModels[i];
+      const isCurrent = m.key === currentModel;
+      const num = i + 1;
+      const star = isCurrent ? ' ⭐' : '';
+      const curLabel = isCurrent ? '  ← 当前' : '';
+      const name = `  ${num}.${star} ${m.key}${curLabel}`;
+
+      lines.push(boxLine(padVisual(name, CONTENT_W)));
+
+      // 显示模型参数
+      const spec = findModelSpecByKey(m.key);
+
+      if (spec) {
+        const params = `     上下文 ${(spec.context_window / 1000).toFixed(0)}K | 输出 ${(spec.max_output / 1000).toFixed(0)}K`;
+        lines.push(boxLine(padVisual(params, CONTENT_W)));
+      }
+
+      // 显示中文描述
+      const desc = MODEL_DESCRIPTIONS[m.key];
+      if (desc) {
+        const descLine = `     ${desc.desc} — ${desc.strengths}`;
+        // 截断到 CONTENT_W 以内
+        const truncated = visualLen(descLine) > CONTENT_W - 4
+          ? descLine.slice(0, CONTENT_W - 8) + '…'
+          : descLine;
+        lines.push(boxLine(padVisual(truncated, CONTENT_W)));
+      }
+
+      lines.push(boxEmpty());
+    }
+  }
+
+  lines.push(boxLine('  输入 [1-N] 选择模型，或 [Q] 返回上级'));
+  lines.push(boxEmpty());
+  lines.push(boxBottom());
+
+  return lines.join('\n');
+}
+
+/**
+ * renderProviderPool — 查看可用模型池
+ */
+export function renderProviderPool(): string {
+  const config = loadConfig();
+  const allModels = collectAllModels();
+
+  const lines: string[] = [];
+  lines.push(boxTop());
+  lines.push(boxLine(padVisual('  可用模型池', CONTENT_W)));
+  lines.push(boxSep());
+  lines.push(boxEmpty());
+
+  if (allModels.length === 0) {
+    lines.push(boxLine(padVisual('  未配置模型（请先运行 omo-sci configure）', CONTENT_W)));
+  } else {
+    for (const m of allModels) {
+      const spec = [...Object.values(config.router.categories).flatMap(c => c.fallback_chain)]
+        .find(s => modelKey(s) === m.key);
+
+      const nameLine = `  ${m.key}`;
+      lines.push(boxLine(padVisual(nameLine, CONTENT_W)));
+
+      if (spec) {
+        const params = `    上下文 ${(spec.context_window / 1000).toFixed(0)}K | 输出 ${(spec.max_output / 1000).toFixed(0)}K`;
+        lines.push(boxLine(padVisual(params, CONTENT_W)));
+      }
+
+      const desc = MODEL_DESCRIPTIONS[m.key];
+      if (desc) {
+        const caveat = desc.caveats ? ` 注意: ${desc.caveats}` : '';
+        lines.push(boxLine(padVisual(`    ${desc.desc}${caveat}`, CONTENT_W)));
+      }
+      lines.push(boxEmpty());
+    }
+  }
+
+  lines.push(boxLine('  按回车返回...'));
+  lines.push(boxEmpty());
+  lines.push(boxBottom());
+
+  return lines.join('\n');
+}
+
+/**
+ * renderAllSwitchPicker — 全部 agent 切换模型面板
+ */
+export function renderAllSwitchPicker(projectDir?: string): string {
+  const allModels = collectAllModels();
+
+  const lines: string[] = [];
+  lines.push(boxTop());
+  lines.push(boxLine(padVisual('  全部 agent 切换为同一模型', CONTENT_W)));
+  lines.push(boxSep());
+  lines.push(boxEmpty());
+
+  if (allModels.length === 0) {
+    lines.push(boxLine(padVisual('  无可选模型（请先运行 omo-sci configure 配置模型）', CONTENT_W)));
+  } else {
+    lines.push(boxLine(padVisual('  可选模型:', CONTENT_W)));
+    lines.push(boxEmpty());
+
+    for (let i = 0; i < allModels.length; i++) {
+      const m = allModels[i];
+      const name = `  ${i + 1}. ${m.key}`;
+      lines.push(boxLine(padVisual(name, CONTENT_W)));
+
+      const config = loadConfig();
+      const spec = [...Object.values(config.router.categories).flatMap(c => c.fallback_chain)]
+        .find(s => modelKey(s) === m.key);
+      if (spec) {
+        const params = `    上下文 ${(spec.context_window / 1000).toFixed(0)}K | 输出 ${(spec.max_output / 1000).toFixed(0)}K`;
+        lines.push(boxLine(padVisual(params, CONTENT_W)));
+      }
+
+      lines.push(boxEmpty());
+    }
+  }
+
+  lines.push(boxLine('  输入模型编号 [1-N] 或 [Q] 返回上级'));
+  lines.push(boxEmpty());
+  lines.push(boxBottom());
+
   return lines.join('\n');
 }

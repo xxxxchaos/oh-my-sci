@@ -10,15 +10,29 @@
  *   omo-sci status
  */
 
+import { readFileSync } from "node:fs";
+import * as path from "node:path";
+import { createInterface } from "node:readline";
 import { runDoctor, formatDoctorReport, formatDoctorReportJson } from "../src/doctor";
 import { DEFAULT_INSTALL_PROVIDERS, DEFAULT_INSTALL_QUOTA, getInstallModelPlan, install, VALID_QUOTAS } from "../src/install";
 import { getStatus, formatStatus } from "../src/status";
 import { formatUsageBar, getUsageInfo } from "../src/commands/sci-usage";
 import { sciStart } from "../src/commands/sci-start";
 import { getProjectStatus, formatProjectStatus } from "../src/commands/sci-status";
-import { getAgentStatus, formatAgentTable, formatProviderList, setAgentModel, resetAgentModels } from "../src/commands/sci-agent";
+import {
+  getAgentStatus,
+  formatAgentTable,
+  formatProviderList,
+  setAgentModel,
+  resetAgentModels,
+  renderMainPanel,
+  renderModelPicker,
+  renderProviderPool,
+  renderAllSwitchPicker,
+  AGENT_NAMES,
+  collectAllModels,
+} from "../src/commands/sci-agent";
 import type { ProviderId } from "../src/types";
-import * as path from "node:path";
 import { PROVIDER_WHITELIST } from "../src/router/provider";
 import {
   formatUninstallPlan,
@@ -32,6 +46,16 @@ const CLI_RUN = "omo-sci";
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const command = args[0];
+
+  if (command === '--version' || command === '-v' || command === 'version') {
+    try {
+      const pkg = JSON.parse(readFileSync(path.join(import.meta.dir, '..', 'package.json'), 'utf-8'));
+      console.log(pkg.version);
+    } catch {
+      console.error('无法读取版本信息');
+    }
+    process.exit(0);
+  }
 
   if (!command || command === "--help" || command === "-h") {
     showHelp();
@@ -77,7 +101,7 @@ async function main(): Promise<void> {
       break;
     }
     case "agent": {
-      handleAgent(args.slice(1));
+      await handleAgent(args.slice(1));
       break;
     }
     default: {
@@ -272,7 +296,7 @@ function handleStart(): void {
   console.log(sciStart());
 }
 
-function handleAgent(args: string[]): void {
+async function handleAgent(args: string[]): Promise<void> {
   let projectDir: string | undefined;
 
   // 提取 --project 和 --project-dir 选项，同时保留其他参数
@@ -287,10 +311,14 @@ function handleAgent(args: string[]): void {
 
   const sub = filteredArgs[0];
 
-  // 无子命令或 list → 显示 agent 表格
+  // 无子命令 → 交互模式或 list
   if (!sub || sub === "list") {
-    const statuses = getAgentStatus(projectDir);
-    console.log(formatAgentTable(statuses));
+    if (isInteractive()) {
+      await interactiveAgentLoop(projectDir);
+    } else {
+      const statuses = getAgentStatus(projectDir);
+      console.log(formatAgentTable(statuses));
+    }
     return;
   }
 
@@ -334,6 +362,120 @@ function handleAgent(args: string[]): void {
   console.error(`未知子命令: ${sub}`);
   console.error("可用子命令: list, providers, set <agent|all> <model>, reset");
   process.exit(1);
+}
+
+// ====================================================================
+// 交互式 Agent 面板循环
+// ====================================================================
+
+function readCliVersion(): string {
+  try {
+    const pkg = JSON.parse(readFileSync(path.join(import.meta.dir, '..', 'package.json'), 'utf-8'));
+    return pkg.version;
+  } catch {
+    return '';
+  }
+}
+
+async function interactiveAgentLoop(projectDir?: string): Promise<void> {
+  const version = readCliVersion();
+
+  while (true) {
+    console.clear();
+    console.log(renderMainPanel(projectDir, version));
+    const choice = await prompt('请输入选项: ');
+
+    if (!choice) continue;
+    const c = choice.toUpperCase();
+
+    if (c === 'Q') {
+      console.log('已退出 Agent 管理。');
+      break;
+    }
+
+    if (c === 'P') {
+      console.clear();
+      console.log(renderProviderPool());
+      await prompt('按回车返回...');
+      continue;
+    }
+
+    if (c === 'A') {
+      await handleAllSwitch(projectDir, version);
+      continue;
+    }
+
+    if (c === 'R') {
+      console.clear();
+      const result = resetAgentModels(projectDir);
+      console.log(result.message);
+      if (result.agentTable) {
+        console.log(result.agentTable);
+      }
+      await prompt('\n按回车返回...');
+      continue;
+    }
+
+    const agentIndex = parseInt(choice, 10);
+    if (agentIndex >= 1 && agentIndex <= AGENT_NAMES.length) {
+      await handleAgentSwitch(agentIndex, projectDir, version);
+      continue;
+    }
+
+    console.log('无效选项，请重试。');
+    await prompt('按回车继续...');
+  }
+}
+
+async function handleAgentSwitch(
+  agentIndex: number,
+  projectDir?: string,
+  version?: string,
+): Promise<void> {
+  const agentName = AGENT_NAMES[agentIndex - 1];
+  if (!agentName) return;
+
+  console.clear();
+  console.log(renderModelPicker(agentName, projectDir));
+  const modelChoice = await prompt('输入模型编号 [1-N] 或 Q 返回: ');
+
+  if (!modelChoice || modelChoice.toUpperCase() === 'Q') return;
+
+  const modelIndex = parseInt(modelChoice, 10);
+  const allModels = collectAllModels();
+
+  if (isNaN(modelIndex) || modelIndex < 1 || modelIndex > allModels.length) {
+    console.log('无效的模型编号。');
+    await prompt('按回车返回...');
+    return;
+  }
+
+  const chosenModel = allModels[modelIndex - 1].key;
+  const result = setAgentModel(agentName, chosenModel, projectDir);
+  console.log(result.message);
+  await prompt('\n按回车返回...');
+}
+
+async function handleAllSwitch(projectDir?: string, version?: string): Promise<void> {
+  console.clear();
+  console.log(renderAllSwitchPicker(projectDir));
+  const modelChoice = await prompt('输入模型编号 [1-N] 或 Q 返回: ');
+
+  if (!modelChoice || modelChoice.toUpperCase() === 'Q') return;
+
+  const modelIndex = parseInt(modelChoice, 10);
+  const allModels = collectAllModels();
+
+  if (isNaN(modelIndex) || modelIndex < 1 || modelIndex > allModels.length) {
+    console.log('无效的模型编号。');
+    await prompt('按回车返回...');
+    return;
+  }
+
+  const chosenModel = allModels[modelIndex - 1].key;
+  const result = setAgentModel('all', chosenModel, projectDir);
+  console.log(result.message);
+  await prompt('\n按回车返回...');
 }
 
 interface InstallArgs {
@@ -528,6 +670,16 @@ async function promptText(label: string, defaultValue: string): Promise<string> 
   }
 }
 
+/**
+ * 简单 readline prompt，用于交互面板
+ */
+function prompt(question: string): Promise<string> {
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  return new Promise(resolve => {
+    rl.question(question, answer => { rl.close(); resolve(answer.trim()); });
+  });
+}
+
 function isInteractive(): boolean {
   return Boolean(process.stdin.isTTY && process.stdout.isTTY);
 }
@@ -566,12 +718,13 @@ omo-sci — 医学科研 AI 智能体团队
   omo-sci status [选项]       查看项目 Passport/Boulder 状态
   omo-sci config              查看安装配置状态
   omo-sci usage               查看用量信息
-  omo-sci agent                   查看当前项目所有 agent 模型分配
-  omo-sci agent providers         查看可用 provider 和模型
+  omo-sci agent               查看/管理当前项目 agent 模型分配
+  omo-sci agent providers     查看可用 provider 和模型
   omo-sci agent set <agent|all> <model>  切换单个或全部 agent 的模型
-  omo-sci agent reset             恢复为按分类路由的默认模型分配
+  omo-sci agent reset         恢复为按分类路由的默认模型分配
   omo-sci start               启动 Dubin 研究引擎
   omo-sci --help              显示此帮助
+  omo-sci --version           显示版本号
 
 install 选项:
   --no-tui                    兼容参数；当前安装流程默认非交互
@@ -604,7 +757,8 @@ status 选项:
   --project <dir>             指定项目目录（默认当前目录）
 
 agent 子命令:
-  list                        列出各 agent 的模型分配（默认）
+  (无参数)                    交互式面板管理（非交互环境显示列表）
+  list                        列出各 agent 的模型分配
   providers                   列出 omo-sci 配置中各分类的可用模型
   set <agent|all> <model>     切换单个或全部 agent 的模型
   reset                       恢复为按分类路由的默认模型分配
