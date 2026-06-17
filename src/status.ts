@@ -67,10 +67,10 @@ export function formatStatus(status: StatusInfo): string {
       "╚══════════════════════════════════════════╝",
       "",
       `  运行以下命令安装:`,
-      `    bunx github:xxxxchaos/oh-my-sci install`,
+      `    omo-sci install`,
       "",
       `  安装后可运行配置向导:`,
-      `    bunx github:xxxxchaos/oh-my-sci configure`,
+      `    omo-sci configure`,
       "",
     ].join("\n");
   }

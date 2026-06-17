@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.1.6 (2026-06-17)
+
+- 推荐安装方式改为全局安装：`bun install -g github:xxxxchaos/oh-my-sci`
+- 安装后统一使用短命令：`omo-sci install`、`omo-sci setup`、`omo-sci doctor --models`
+- CLI 安装完成后的下一步提示改为全局命令，避免继续复制 `bunx github:...`
+- README 和安装指南增加 Bun 全局 bin PATH 提醒：`export PATH="$HOME/.bun/bin:$PATH"`
+- `bunx github:...` 保留为免安装临时用法，不再作为推荐主路径
+
 ## v0.1.5 (2026-06-17)
 
 - 清理 GitHub beta 命令体验：继续使用简洁的 `bunx github:xxxxchaos/oh-my-sci ...`，不强制带版本 tag

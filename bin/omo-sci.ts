@@ -26,7 +26,7 @@ import {
   uninstall,
 } from "../src/uninstall";
 
-const GITHUB_BETA_RUN = "bunx github:xxxxchaos/oh-my-sci";
+const CLI_RUN = "omo-sci";
 
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
@@ -168,7 +168,7 @@ async function handleSetup(args: string[]): Promise<void> {
       await handleUninstall([]);
       break;
     default:
-      console.error(`没有这个选项。运行 \`${GITHUB_BETA_RUN} setup\` 可重新打开向导。`);
+      console.error(`没有这个选项。运行 \`${CLI_RUN} setup\` 可重新打开向导。`);
       process.exit(1);
   }
 }
@@ -213,10 +213,9 @@ function printInstallLocations(prefix: string, configPath: string, projectDirOpt
 function printNextCommands(): void {
   console.log("");
   console.log("下一步:");
-  console.log(`  GitHub beta 继续使用: ${GITHUB_BETA_RUN} setup`);
-  console.log(`  配置模型 provider: ${GITHUB_BETA_RUN} configure`);
-  console.log(`  验证安装: ${GITHUB_BETA_RUN} doctor --models`);
-  console.log("  如果你已全局安装 omo-sci，也可以直接运行: omo-sci setup");
+  console.log(`  打开设置向导: ${CLI_RUN} setup`);
+  console.log(`  配置模型 provider: ${CLI_RUN} configure`);
+  console.log(`  验证安装: ${CLI_RUN} doctor --models`);
 }
 
 async function handleDoctor(args: string[]): Promise<void> {
@@ -388,7 +387,7 @@ function parseUninstallArgs(args: string[]): UninstallArgs {
 
 async function promptInstallOptions(): Promise<InstallArgs> {
   if (!isInteractive()) {
-    console.error(`请指定 --providers，例如: ${GITHUB_BETA_RUN} configure --providers opencode-go,deepseek --quota 500000000`);
+    console.error(`请指定 --providers，例如: ${CLI_RUN} configure --providers opencode-go,deepseek --quota 500000000`);
     process.exit(1);
   }
 
@@ -476,14 +475,12 @@ function showSetupHelp(): void {
   console.log([
     "omo-sci setup 需要交互式终端。",
     "",
-    "GitHub beta 常用非交互命令:",
-    `  ${GITHUB_BETA_RUN} install`,
-    `  ${GITHUB_BETA_RUN} configure --providers opencode-go,deepseek --quota 500000000`,
-    `  ${GITHUB_BETA_RUN} status`,
-    `  ${GITHUB_BETA_RUN} doctor --models`,
-    `  ${GITHUB_BETA_RUN} uninstall --yes`,
-    "",
-    "如果你已全局安装 omo-sci，也可以使用对应的 omo-sci ... 简写。",
+    "常用非交互命令:",
+    `  ${CLI_RUN} install`,
+    `  ${CLI_RUN} configure --providers opencode-go,deepseek --quota 500000000`,
+    `  ${CLI_RUN} status`,
+    `  ${CLI_RUN} doctor --models`,
+    `  ${CLI_RUN} uninstall --yes`,
   ].join("\n"));
 }
 
@@ -534,16 +531,12 @@ status 选项:
   --project <dir>             指定项目目录（默认当前目录）
 
 示例:
-  ${GITHUB_BETA_RUN} install
-  ${GITHUB_BETA_RUN} setup
-  ${GITHUB_BETA_RUN} configure
-  ${GITHUB_BETA_RUN} configure --providers deepseek,qwen-bailian --quota 500000000
-  ${GITHUB_BETA_RUN} uninstall --dry-run
-  ${GITHUB_BETA_RUN} uninstall --yes
-  ${GITHUB_BETA_RUN} install --no-tui --project-dir /tmp/test
-
-已全局安装 omo-sci 时，也可使用:
   omo-sci setup
+  omo-sci install
+  omo-sci configure
+  omo-sci configure --providers deepseek,qwen-bailian --quota 500000000
+  omo-sci uninstall --dry-run
+  omo-sci uninstall --yes
   omo-sci doctor --models
   omo-sci doctor
 `);

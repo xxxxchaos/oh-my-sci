@@ -42,10 +42,10 @@ omo-sci 支持国内 7 大模型提供商：
   archimedes   deep-reasoning        deepseek/deepseek-v4-pro         opencode-go/qwen3.7-max
 ```
 
-默认安装会先使用 `opencode-go` 生成可运行配置。GitHub beta 阶段安装后可用下面的命令调整模型来源：
+默认安装会先使用 `opencode-go` 生成可运行配置。全局安装 CLI 后，可用下面的命令调整模型来源：
 
 ```bash
-bunx github:xxxxchaos/oh-my-sci configure --providers qwen-bailian --quota 500000000
+omo-sci configure --providers qwen-bailian --quota 500000000
 ```
 
 如果你只选择一个 provider，例如 `qwen-bailian`，9 个 agent 都会优先使用 `qwen-bailian/qwen3.7-max`，不会再保留默认的 DeepSeek 或 OpenCode Go 模型。
@@ -155,7 +155,7 @@ TENCENT_API_KEY=your-key
 运行以下命令验证模型配置是否正确：
 
 ```bash
-bun run bin/omo-sci.ts doctor --models
+omo-sci doctor --models
 ```
 
 `doctor --models` 会检查当前项目 `.opencode/agents/*.md` 中的模型链是否都出现在 omo-sci 配置里。如果某个 agent 引用了你没有配置的模型，会显示警告。

@@ -4,7 +4,7 @@
 
 omo-sci 的目标是把一个临床研究想法，逐步推进成可执行的研究方案、统计分析计划、论文初稿和投稿材料。它不是单个聊天助手，而是一组分工明确的 agent：Dubin 负责和你对话、拆解任务和把关节奏，其他 specialist agent 负责研究设计、文献检索、统计分析、写作、审稿和投稿准备。
 
-> 当前版本：v0.1.5 beta。适合朋友小范围实测和反馈，不建议直接用于正式伦理提交、临床决策或未复核的论文投稿。
+> 当前版本：v0.1.6 beta。适合朋友小范围实测和反馈，不建议直接用于正式伦理提交、临床决策或未复核的论文投稿。
 
 ## 它能做什么
 
@@ -44,21 +44,31 @@ omo-sci 的目标是把一个临床研究想法，逐步推进成可执行的研
 
 ## 快速安装
 
-在你要开展研究项目的目录里运行：
+先全局安装 omo-sci CLI：
 
 ```bash
-bunx github:xxxxchaos/oh-my-sci install
+bun install -g github:xxxxchaos/oh-my-sci
+```
+
+如果安装后提示找不到 `omo-sci`，先把 Bun 的全局 bin 目录加入 PATH：
+
+```bash
+export PATH="$HOME/.bun/bin:$PATH"
+```
+
+然后进入你要开展研究项目的目录，运行：
+
+```bash
+omo-sci install
 ```
 
 如果你的朋友不熟悉命令行，安装后直接运行向导：
 
 ```bash
-bunx github:xxxxchaos/oh-my-sci setup
+omo-sci setup
 ```
 
 向导会把安装、模型配置、状态检查、环境诊断和卸载放在一个菜单里。
-
-注意：GitHub beta 阶段的 `bunx github:...` 是临时执行，不会把 `omo-sci` 命令永久安装到 shell PATH。除非你另行做了全局安装，否则后续命令都继续使用 `bunx github:xxxxchaos/oh-my-sci ...`。
 
 安装说明：
 
@@ -67,9 +77,17 @@ bunx github:xxxxchaos/oh-my-sci setup
 - `configure` 不带参数时会进入 provider/quota 选择向导。
 - 将来发布到 npm 后，同样可以使用 `bunx omo-sci install`。
 
+临时体验、不想全局安装时，也可以使用：
+
 ```bash
-bunx github:xxxxchaos/oh-my-sci configure
-bunx github:xxxxchaos/oh-my-sci configure --providers opencode-go,deepseek --quota 500000000
+bunx github:xxxxchaos/oh-my-sci install
+```
+
+但 `bunx github:...` 不会把 `omo-sci` 注册到 PATH，后续命令也需要继续写完整的 `bunx github:xxxxchaos/oh-my-sci ...`。
+
+```bash
+omo-sci configure
+omo-sci configure --providers opencode-go,deepseek --quota 500000000
 ```
 
 `configure` 参数说明：
@@ -93,8 +111,8 @@ bunx github:xxxxchaos/oh-my-sci configure --providers opencode-go,deepseek --quo
 安装完成后先运行：
 
 ```bash
-bunx github:xxxxchaos/oh-my-sci doctor
-bunx github:xxxxchaos/oh-my-sci doctor --models
+omo-sci doctor
+omo-sci doctor --models
 ```
 
 `doctor --models` 会检查当前项目 agent 文件里的模型链，是否都出现在 omo-sci 配置中。如果看到某个 agent 引用了你没有配置的模型，建议重新运行 install 并调整 `--providers`。
@@ -141,14 +159,14 @@ Dubin 会用中文引导你描述临床问题，例如：
 CLI 也可以直接运行：
 
 ```bash
-bunx github:xxxxchaos/oh-my-sci setup
-bunx github:xxxxchaos/oh-my-sci start
-bunx github:xxxxchaos/oh-my-sci status
-bunx github:xxxxchaos/oh-my-sci config
-bunx github:xxxxchaos/oh-my-sci usage
-bunx github:xxxxchaos/oh-my-sci doctor --models
-bunx github:xxxxchaos/oh-my-sci uninstall --dry-run
-bunx github:xxxxchaos/oh-my-sci uninstall
+omo-sci setup
+omo-sci start
+omo-sci status
+omo-sci config
+omo-sci usage
+omo-sci doctor --models
+omo-sci uninstall --dry-run
+omo-sci uninstall
 ```
 
 ## 典型工作流
@@ -179,7 +197,7 @@ omo-sci 支持以下 provider：
 如果只想用一个 provider，例如只用 Qwen：
 
 ```bash
-bunx github:xxxxchaos/oh-my-sci configure --providers qwen-bailian --quota 500000000
+omo-sci configure --providers qwen-bailian --quota 500000000
 ```
 
 这样 9 个 agent 都会写入 Qwen 模型，不会默认去调用 DeepSeek 或其他 provider。
@@ -189,19 +207,19 @@ bunx github:xxxxchaos/oh-my-sci configure --providers qwen-bailian --quota 50000
 在安装 omo-sci 的项目目录里运行：
 
 ```bash
-bunx github:xxxxchaos/oh-my-sci uninstall
+omo-sci uninstall
 ```
 
 它会先显示将删除/更新哪些文件，再要求确认。想先预览不删除：
 
 ```bash
-bunx github:xxxxchaos/oh-my-sci uninstall --dry-run
+omo-sci uninstall --dry-run
 ```
 
 一键确认卸载：
 
 ```bash
-bunx github:xxxxchaos/oh-my-sci uninstall --yes
+omo-sci uninstall --yes
 ```
 
 默认卸载内容：
