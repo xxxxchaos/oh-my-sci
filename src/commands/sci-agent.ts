@@ -261,10 +261,15 @@ export function formatProviderList(): string {
       lines.push('    (未配置模型)');
     } else {
       for (const model of chain) {
+        const desc = MODEL_DESCRIPTIONS[`${model.provider}/${model.model_id}`];
+        const providerTag = desc?.providerDesc
+          ? `  [${desc.providerDesc}]`
+          : `  [${model.provider}]`;
         lines.push(
           `    ${model.provider}/${model.model_id}` +
             `  (ctx: ${model.context_window.toLocaleString()},` +
-            ` max: ${model.max_output.toLocaleString()})`,
+            ` max: ${model.max_output.toLocaleString()})` +
+            providerTag,
         );
       }
     }
@@ -288,37 +293,89 @@ export const AGENT_NAMES: AgentName[] = [
   'writer', 'submitter', 'ebmer', 'polisher',
 ];
 
-/** 模型中文描述映射表 */
-export const MODEL_DESCRIPTIONS: Record<string, { desc: string; strengths: string; caveats: string }> = {
+/** 模型中文描述映射表（key 格式: provider/model_id） */
+export const MODEL_DESCRIPTIONS: Record<string, {
+  desc: string;
+  providerDesc: string;
+  strengths: string;
+  caveats: string;
+}> = {
+  // === OpenCode Go 订阅路径 ===
   'opencode-go/qwen3.7-max': {
     desc: '阿里千问旗舰模型',
+    providerDesc: '来源: OpenCode Go 订阅（月费 ¥72，配额内不限量）',
     strengths: 'Agent 稳定性国产最强，MCP-Atlas 76.4，35h 长链路不崩',
     caveats: '闭源，输出偏冗长',
   },
-  'deepseek/deepseek-v4-pro': {
-    desc: 'DeepSeek 旗舰推理模型',
-    strengths: '编程与数学推理国内最强，LiveCodeBench 93.5',
-    caveats: '跨领域综合推理(HLE)稍弱',
+  'opencode-go/deepseek-v4-pro': {
+    desc: 'DeepSeek V4 Pro（通过 Go 订阅）',
+    providerDesc: '来源: OpenCode Go 订阅（月费 ¥72，配额内不限量）',
+    strengths: '编程与数学推理国内最强，LiveCodeBench 93.5，通过订阅免按量计费',
+    caveats: 'Go 订阅配额有限，高峰期可能受限',
   },
   'opencode-go/glm-5.1': {
-    desc: '智谱 GLM 旗舰模型',
+    desc: '智谱 GLM 旗舰模型（通过 Go 订阅）',
+    providerDesc: '来源: OpenCode Go 订阅（月费 ¥72，配额内不限量）',
     strengths: '中文写作最优，MIT 开源，1M 上下文',
     caveats: '模型响应延迟较高(30-60s)',
   },
   'opencode-go/kimi-k2.7-code': {
-    desc: '月之暗面 Kimi 编程模型',
-    strengths: '性价比极高(输入$0.95/M)，MCP 工具调用出色',
+    desc: 'Kimi K2.7 编程模型（通过 Go 订阅）',
+    providerDesc: '来源: OpenCode Go 订阅（月费 ¥72，配额内不限量）',
+    strengths: '性价比极高，MCP 工具调用出色，thinking tokens -30%',
     caveats: '上下文仅256K',
   },
   'opencode-go/minimax-m3': {
-    desc: 'MiniMax 第三代旗舰模型',
-    strengths: '超长程韧性最强，月费包干 Token Plan',
+    desc: 'MiniMax M3（通过 Go 订阅）',
+    providerDesc: '来源: OpenCode Go 订阅（月费 ¥72，配额内不限量）',
+    strengths: '超长程韧性最强，原生多模态',
     caveats: '纯 benchmark 与 Claude 有差距',
   },
+  'opencode-go/deepseek-v4-flash': {
+    desc: 'DeepSeek V4 Flash（通过 Go 订阅）',
+    providerDesc: '来源: OpenCode Go 订阅',
+    strengths: '速度极快，订阅内不限量使用',
+    caveats: '复杂推理有限',
+  },
+
+  // === 直接 API 路径 ===
+  'deepseek/deepseek-v4-pro': {
+    desc: 'DeepSeek V4 Pro（官方 API）',
+    providerDesc: '来源: DeepSeek 官方 API（按量计费 $1.74/M 输入 + $3.48/M 输出）',
+    strengths: '编程与数学推理国内最强，无中间商，响应更快',
+    caveats: '按量计费，长任务费用可能高于订阅',
+  },
   'deepseek/deepseek-v4-flash': {
-    desc: 'DeepSeek 快速模型',
+    desc: 'DeepSeek V4 Flash（官方 API）',
+    providerDesc: '来源: DeepSeek 官方 API（按量计费，成本极低）',
     strengths: '速度极快，成本极低，适合高频简单任务',
     caveats: '复杂推理能力有限',
+  },
+
+  // === 第三方 API 路径 ===
+  'kimi/kimi-k2.7-code': {
+    desc: 'Kimi K2.7（官方 API）',
+    providerDesc: '来源: Kimi 开放平台（按量计费 $0.95/M 输入）',
+    strengths: '价格是 GPT-5.5 的 1/5，MCP 工具调用出色',
+    caveats: '上下文仅256K',
+  },
+  'zhipu/glm-5.2': {
+    desc: '智谱 GLM-5.2（官方 API）',
+    providerDesc: '来源: 智谱开放平台（按量计费）',
+    strengths: '中文写作最优，MIT 开源，1M 上下文',
+    caveats: '响应延迟较高(30-60s)',
+  },
+  'minimax/minimax-m3': {
+    desc: 'MiniMax M3（官方 API）',
+    providerDesc: '来源: MiniMax 开放平台 / Token Plan（$20/月起 ~1.7B tokens）',
+    strengths: '超长程韧性最强，包月 Token Plan 成本可控',
+    caveats: '纯 benchmark 与 Claude 有差距',
+  },
+  'qwen-bailian/qwen3.7-max': {
+    desc: '阿里千问旗舰（百炼 API）',
+    providerDesc: '来源: 阿里百炼（按量计费 $2.5/M 输入 + $7.5/M 输出）',
+    strengths: 'Agent 稳定性国产最强，1M 上下文',
+    caveats: '闭源，输出偏冗长',
   },
 };
 
@@ -419,6 +476,47 @@ function findModelSpecByKey(key: string): { context_window: number; max_output: 
 }
 
 // ====================================================================
+// 模型分组辅助
+// ====================================================================
+
+interface ModelGroupEntry {
+  key: string;
+  provider: string;
+  id: string;
+}
+
+interface ModelGroup {
+  header: string;
+  models: ModelGroupEntry[];
+}
+
+/**
+ * 将模型列表按 provider 类型分组（订阅优先，API 在后）
+ */
+function groupModelsByProvider(models: ModelGroupEntry[]): ModelGroup[] {
+  const groups: ModelGroup[] = [];
+
+  const subModels = models.filter(m => m.provider === 'opencode-go');
+  const apiModels = models.filter(m => m.provider !== 'opencode-go');
+
+  if (subModels.length > 0) {
+    groups.push({
+      header: '★ 推荐 — OpenCode Go 订阅（月费 ¥72 包月）',
+      models: subModels,
+    });
+  }
+
+  if (apiModels.length > 0) {
+    groups.push({
+      header: '── 按量计费 API ──',
+      models: apiModels,
+    });
+  }
+
+  return groups;
+}
+
+// ====================================================================
 // 面板渲染函数
 // ====================================================================
 
@@ -492,8 +590,9 @@ export function renderModelPicker(agentName: string, projectDir?: string): strin
   const categoryLabel = category ? (CATEGORY_LABELS[category] ?? category) : '未知';
   const currentModel = agent?.currentModel ?? '未配置';
 
-  // 收集可用模型（flat order, 与 collectAllModels 一致）
+  // 收集可用模型并按 provider 分组
   const allModels = collectAllModels();
+  const groups = groupModelsByProvider(allModels);
 
   const lines: string[] = [];
   lines.push(boxTop());
@@ -506,39 +605,53 @@ export function renderModelPicker(agentName: string, projectDir?: string): strin
   if (allModels.length === 0) {
     lines.push(boxLine(padVisual('  无可选模型（请先运行 omo-sci configure 配置模型）', CONTENT_W)));
   } else {
-    lines.push(boxLine(padVisual('  可选模型:', CONTENT_W)));
+    lines.push(boxLine(padVisual('  可选模型（按推荐度排序）:', CONTENT_W)));
     lines.push(boxEmpty());
 
-    for (let i = 0; i < allModels.length; i++) {
-      const m = allModels[i];
-      const isCurrent = m.key === currentModel;
-      const num = i + 1;
-      const star = isCurrent ? ' ⭐' : '';
-      const curLabel = isCurrent ? '  ← 当前' : '';
-      const name = `  ${num}.${star} ${m.key}${curLabel}`;
+    let globalIndex = 0;
 
-      lines.push(boxLine(padVisual(name, CONTENT_W)));
-
-      // 显示模型参数
-      const spec = findModelSpecByKey(m.key);
-
-      if (spec) {
-        const params = `     上下文 ${(spec.context_window / 1000).toFixed(0)}K | 输出 ${(spec.max_output / 1000).toFixed(0)}K`;
-        lines.push(boxLine(padVisual(params, CONTENT_W)));
-      }
-
-      // 显示中文描述
-      const desc = MODEL_DESCRIPTIONS[m.key];
-      if (desc) {
-        const descLine = `     ${desc.desc} — ${desc.strengths}`;
-        // 截断到 CONTENT_W 以内
-        const truncated = visualLen(descLine) > CONTENT_W - 4
-          ? descLine.slice(0, CONTENT_W - 8) + '…'
-          : descLine;
-        lines.push(boxLine(padVisual(truncated, CONTENT_W)));
-      }
-
+    for (const group of groups) {
+      // 分组标题
+      lines.push(boxLine(padVisual(`  ${group.header}`, CONTENT_W)));
       lines.push(boxEmpty());
+
+      for (const m of group.models) {
+        globalIndex++;
+        const isCurrent = m.key === currentModel;
+        const star = isCurrent ? ' ⭐' : '';
+        const curLabel = isCurrent ? '  ← 当前' : '';
+        const name = `  ${globalIndex}.${star} ${m.key}${curLabel}`;
+
+        lines.push(boxLine(padVisual(name, CONTENT_W)));
+
+        // 显示模型参数
+        const spec = findModelSpecByKey(m.key);
+        if (spec) {
+          const params = `     上下文 ${(spec.context_window / 1000).toFixed(0)}K | 输出 ${(spec.max_output / 1000).toFixed(0)}K`;
+          lines.push(boxLine(padVisual(params, CONTENT_W)));
+        }
+
+        // 显示中文描述 + 来源
+        const desc = MODEL_DESCRIPTIONS[m.key];
+        if (desc) {
+          const descLine = `     ${desc.desc} · ${desc.strengths}`;
+          const truncated = visualLen(descLine) > CONTENT_W - 4
+            ? descLine.slice(0, CONTENT_W - 8) + '…'
+            : descLine;
+          lines.push(boxLine(padVisual(truncated, CONTENT_W)));
+
+          // 如果 providerDesc 有额外信息（非简单重复），显示来源行
+          if (desc.providerDesc && desc.providerDesc.length > 0) {
+            const provLine = `     ${desc.providerDesc}`;
+            const provTruncated = visualLen(provLine) > CONTENT_W - 4
+              ? provLine.slice(0, CONTENT_W - 8) + '…'
+              : provLine;
+            lines.push(boxLine(padVisual(provTruncated, CONTENT_W)));
+          }
+        }
+
+        lines.push(boxEmpty());
+      }
     }
   }
 
@@ -555,6 +668,7 @@ export function renderModelPicker(agentName: string, projectDir?: string): strin
 export function renderProviderPool(): string {
   const config = loadConfig();
   const allModels = collectAllModels();
+  const groups = groupModelsByProvider(allModels);
 
   const lines: string[] = [];
   lines.push(boxTop());
@@ -565,24 +679,35 @@ export function renderProviderPool(): string {
   if (allModels.length === 0) {
     lines.push(boxLine(padVisual('  未配置模型（请先运行 omo-sci configure）', CONTENT_W)));
   } else {
-    for (const m of allModels) {
-      const spec = [...Object.values(config.router.categories).flatMap(c => c.fallback_chain)]
-        .find(s => modelKey(s) === m.key);
-
-      const nameLine = `  ${m.key}`;
-      lines.push(boxLine(padVisual(nameLine, CONTENT_W)));
-
-      if (spec) {
-        const params = `    上下文 ${(spec.context_window / 1000).toFixed(0)}K | 输出 ${(spec.max_output / 1000).toFixed(0)}K`;
-        lines.push(boxLine(padVisual(params, CONTENT_W)));
-      }
-
-      const desc = MODEL_DESCRIPTIONS[m.key];
-      if (desc) {
-        const caveat = desc.caveats ? ` 注意: ${desc.caveats}` : '';
-        lines.push(boxLine(padVisual(`    ${desc.desc}${caveat}`, CONTENT_W)));
-      }
+    for (const group of groups) {
+      // 分组标题
+      lines.push(boxLine(padVisual(`  ${group.header}`, CONTENT_W)));
       lines.push(boxEmpty());
+
+      for (const m of group.models) {
+        const spec = [...Object.values(config.router.categories).flatMap(c => c.fallback_chain)]
+          .find(s => modelKey(s) === m.key);
+
+        const nameLine = `  ${m.key}`;
+        lines.push(boxLine(padVisual(nameLine, CONTENT_W)));
+
+        if (spec) {
+          const params = `    上下文 ${(spec.context_window / 1000).toFixed(0)}K | 输出 ${(spec.max_output / 1000).toFixed(0)}K`;
+          lines.push(boxLine(padVisual(params, CONTENT_W)));
+        }
+
+        const desc = MODEL_DESCRIPTIONS[m.key];
+        if (desc) {
+          lines.push(boxLine(padVisual(`    ${desc.desc} · ${desc.strengths}`, CONTENT_W)));
+          if (desc.providerDesc) {
+            lines.push(boxLine(padVisual(`    ${desc.providerDesc}`, CONTENT_W)));
+          }
+          if (desc.caveats) {
+            lines.push(boxLine(padVisual(`    ⚠ ${desc.caveats}`, CONTENT_W)));
+          }
+        }
+        lines.push(boxEmpty());
+      }
     }
   }
 
@@ -598,6 +723,7 @@ export function renderProviderPool(): string {
  */
 export function renderAllSwitchPicker(projectDir?: string): string {
   const allModels = collectAllModels();
+  const groups = groupModelsByProvider(allModels);
 
   const lines: string[] = [];
   lines.push(boxTop());
@@ -608,23 +734,38 @@ export function renderAllSwitchPicker(projectDir?: string): string {
   if (allModels.length === 0) {
     lines.push(boxLine(padVisual('  无可选模型（请先运行 omo-sci configure 配置模型）', CONTENT_W)));
   } else {
-    lines.push(boxLine(padVisual('  可选模型:', CONTENT_W)));
-    lines.push(boxEmpty());
+    let globalIndex = 0;
 
-    for (let i = 0; i < allModels.length; i++) {
-      const m = allModels[i];
-      const name = `  ${i + 1}. ${m.key}`;
-      lines.push(boxLine(padVisual(name, CONTENT_W)));
-
-      const config = loadConfig();
-      const spec = [...Object.values(config.router.categories).flatMap(c => c.fallback_chain)]
-        .find(s => modelKey(s) === m.key);
-      if (spec) {
-        const params = `    上下文 ${(spec.context_window / 1000).toFixed(0)}K | 输出 ${(spec.max_output / 1000).toFixed(0)}K`;
-        lines.push(boxLine(padVisual(params, CONTENT_W)));
-      }
-
+    for (const group of groups) {
+      // 分组标题
+      lines.push(boxLine(padVisual(`  ${group.header}`, CONTENT_W)));
       lines.push(boxEmpty());
+
+      for (const m of group.models) {
+        globalIndex++;
+        const name = `  ${globalIndex}. ${m.key}`;
+        lines.push(boxLine(padVisual(name, CONTENT_W)));
+
+        const config = loadConfig();
+        const spec = [...Object.values(config.router.categories).flatMap(c => c.fallback_chain)]
+          .find(s => modelKey(s) === m.key);
+        if (spec) {
+          const params = `    上下文 ${(spec.context_window / 1000).toFixed(0)}K | 输出 ${(spec.max_output / 1000).toFixed(0)}K`;
+          lines.push(boxLine(padVisual(params, CONTENT_W)));
+        }
+
+        // 显示中文描述
+        const desc = MODEL_DESCRIPTIONS[m.key];
+        if (desc) {
+          const descLine = `    ${desc.desc} · ${desc.strengths}`;
+          const truncated = visualLen(descLine) > CONTENT_W - 4
+            ? descLine.slice(0, CONTENT_W - 8) + '…'
+            : descLine;
+          lines.push(boxLine(padVisual(truncated, CONTENT_W)));
+        }
+
+        lines.push(boxEmpty());
+      }
     }
   }
 

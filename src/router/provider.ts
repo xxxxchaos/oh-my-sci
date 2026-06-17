@@ -43,7 +43,10 @@ export const PROVIDER_REGISTRY: Partial<Record<ProviderId, {
     models: [
       { provider: 'opencode-go', model_id: 'qwen3.7-max', context_window: 1_000_000, max_output: 128_000 },
       { provider: 'opencode-go', model_id: 'deepseek-v4-pro', context_window: 1_000_000, max_output: 128_000 },
+      { provider: 'opencode-go', model_id: 'glm-5.1', context_window: 1_000_000, max_output: 128_000 },
       { provider: 'opencode-go', model_id: 'kimi-k2.7-code', context_window: 256_000, max_output: 128_000 },
+      { provider: 'opencode-go', model_id: 'minimax-m3', context_window: 1_000_000, max_output: 128_000 },
+      { provider: 'opencode-go', model_id: 'deepseek-v4-flash', context_window: 1_000_000, max_output: 128_000 },
     ],
   },
 };
