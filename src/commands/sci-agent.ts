@@ -12,6 +12,32 @@ import { extractAgentModels, AGENT_CATEGORIES, applyAgentModelPlan, modelKey } f
 import { AGENT_DISPLAY_NAMES, CATEGORY_LABELS } from '../router/categories';
 import { PROVIDER_REGISTRY } from '../router/provider';
 import type { AgentName, CapabilityCategory, ProviderId } from '../types';
+import { homedir } from 'node:os';
+
+/** OpenCode auth provider ID → omo-sci ProviderId 映射 */
+const AUTH_PROVIDER_MAP: Record<string, ProviderId> = {
+  deepseek: 'deepseek',
+  'kimi-for-coding': 'kimi',
+  'zhipuai-coding-plan': 'zhipu',
+  'opencode-go': 'opencode-go',
+  'minimax-cn-coding-plan': 'minimax',
+  'tencent-hy': 'tencent-hy',
+};
+
+/** 从 OpenCode auth.json 读取已登录的 provider ID 列表 */
+function getOpenCodeProviders(): Set<ProviderId> {
+  const providers = new Set<ProviderId>();
+  try {
+    const authPath = join(homedir(), '.local', 'share', 'opencode', 'auth.json');
+    if (!existsSync(authPath)) return providers;
+    const auth = JSON.parse(readFileSync(authPath, 'utf-8'));
+    for (const key of Object.keys(auth)) {
+      const mapped = AUTH_PROVIDER_MAP[key];
+      if (mapped) providers.add(mapped);
+    }
+  } catch { /* auth.json 不可读时静默跳过 */ }
+  return providers;
+}
 
 // ====================================================================
 // 类型
@@ -467,13 +493,21 @@ export function collectAllModels(): { key: string; provider: string; id: string 
  * collectConfiguredProviders — 从配置中收集已配置的 provider ID（去重）
  */
 function collectConfiguredProviders(): string[] {
-  const config = loadConfig();
   const providerSet = new Set<string>();
+
+  // 1. 从 omo-sci.jsonc 的 fallback_chain 收集
+  const config = loadConfig();
   for (const catConfig of Object.values(config.router.categories)) {
     for (const spec of catConfig.fallback_chain) {
       providerSet.add(spec.provider);
     }
   }
+
+  // 2. 从 OpenCode auth.json 自动发现已登录的 provider
+  for (const p of getOpenCodeProviders()) {
+    providerSet.add(p);
+  }
+
   return Array.from(providerSet);
 }
 

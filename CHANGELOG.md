@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.1.12 (2026-06-17)
+
+- 修复 omo-sci 只读取自己配置中的 provider、忽略 OpenCode 已登录 provider 的问题
+- `collectConfiguredProviders()` 现在自动从 `~/.local/share/opencode/auth.json` 发现可用 provider
+- 新增 `AUTH_PROVIDER_MAP` 映射表（OpenCode auth ID → omo-sci ProviderId）
+
 ## v0.1.11 (2026-06-17)
 
 - 模型选择面板重构为两层：第一层选模型族（按 model_id 去重），第二层选 provider 来源
