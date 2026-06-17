@@ -18,13 +18,15 @@ import {
 // ====== 校验常量 ======
 
 export const VALID_QUOTAS = [200000000, 500000000, 1000000000] as const;
+export const DEFAULT_INSTALL_PROVIDERS: ProviderId[] = ['opencode-go'];
+export const DEFAULT_INSTALL_QUOTA = 500000000;
 
 // ====== 类型定义 ======
 
 export interface InstallOptions {
   noTui: boolean;
-  providers: string[];
-  quota: number;
+  providers?: string[];
+  quota?: number;
 }
 
 // ====================================================================
@@ -36,14 +38,14 @@ export interface InstallOptions {
  *
  * @param providers 提供商 ID 列表
  * @param quota 月配额（token 数）
- * @param [disableTui] 是否跳过交互模式输出
+ * @param [_disableTui] 保留兼容的非交互安装参数
  * @returns 完整的 OmoSciConfig 对象
  * @throws {Error} 校验失败时抛出
  */
 export function generateConfig(
   providers: ProviderId[],
   quota: number,
-  disableTui?: boolean,
+  _disableTui?: boolean,
 ): OmoSciConfig {
   // ====== 输入校验 ======
 
@@ -69,11 +71,6 @@ export function generateConfig(
   }
 
   // ====== 构建配置 ======
-
-  if (!disableTui) {
-    console.log("交互式 TUI 模式（待实现）");
-    console.log("使用 --no-tui 可跳过交互，直接写入配置");
-  }
 
   const availableModels = getAvailableModels(providers);
 
@@ -121,6 +118,16 @@ export function generateConfig(
   };
 }
 
+export function normalizeInstallOptions(options: InstallOptions): Required<InstallOptions> {
+  return {
+    noTui: options.noTui,
+    providers: options.providers && options.providers.length > 0
+      ? options.providers
+      : [...DEFAULT_INSTALL_PROVIDERS],
+    quota: options.quota ?? DEFAULT_INSTALL_QUOTA,
+  };
+}
+
 // ====== 安装函数 ======
 
 /**
@@ -140,7 +147,8 @@ export async function install(
   installConfig?: { configDir?: string; projectDir?: string },
 ): Promise<string> {
   // 使用 generateConfig 生成配置（包含输入校验）
-  const config = generateConfig(options.providers as ProviderId[], options.quota, options.noTui);
+  const normalized = normalizeInstallOptions(options);
+  const config = generateConfig(normalized.providers as ProviderId[], normalized.quota, normalized.noTui);
 
   // ====== 路径解析 ======
 
@@ -197,10 +205,11 @@ export async function install(
 }
 
 export function getInstallModelPlan(
-  providers: ProviderId[],
-  quota: number,
+  providers?: ProviderId[],
+  quota: number = DEFAULT_INSTALL_QUOTA,
 ): string {
-  const config = generateConfig(providers, quota, true);
+  const normalized = normalizeInstallOptions({ noTui: true, providers, quota });
+  const config = generateConfig(normalized.providers as ProviderId[], normalized.quota, true);
   return formatAgentModelPlan(buildAgentModelPlan(config));
 }
 

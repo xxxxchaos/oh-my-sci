@@ -3,13 +3,14 @@
  * omo-sci CLI 入口
  *
  * 用法:
- *   omo-sci install --no-tui --providers deepseek,qwen-bailian --quota 500000000
+ *   omo-sci install
+ *   omo-sci configure --providers deepseek,qwen-bailian --quota 500000000
  *   omo-sci doctor
  *   omo-sci status
  */
 
 import { runDoctor, formatDoctorReport, formatDoctorReportJson } from "../src/doctor";
-import { getInstallModelPlan, install } from "../src/install";
+import { DEFAULT_INSTALL_PROVIDERS, getInstallModelPlan, install } from "../src/install";
 import { getStatus, formatStatus } from "../src/status";
 import { formatUsageBar, getUsageInfo } from "../src/commands/sci-usage";
 import { sciStart } from "../src/commands/sci-start";
@@ -28,6 +29,12 @@ async function main(): Promise<void> {
   switch (command) {
     case "install": {
       await handleInstall(args.slice(1));
+      break;
+    }
+    case "configure":
+    case "config:init":
+    case "setup": {
+      await handleConfigure(args.slice(1));
       break;
     }
     case "doctor": {
@@ -62,11 +69,14 @@ async function handleInstall(args: string[]): Promise<void> {
   const options = parseInstallArgs(args);
 
   console.log("正在安装 omo-sci...");
-  console.log(`  提供商: ${options.providers.join(", ")}`);
+  if (options.providers.length === 0) {
+    console.log(`  提供商: ${DEFAULT_INSTALL_PROVIDERS.join(", ")}（默认，可稍后用 omo-sci configure 修改）`);
+  } else {
+    console.log(`  提供商: ${options.providers.join(", ")}`);
+  }
   console.log(`  月配额: ${(options.quota / 100000000).toFixed(1)} 亿 tokens`);
   if (options.configDir) console.log(`  配置目录: ${options.configDir}`);
   if (options.projectDir) console.log(`  项目目录: ${options.projectDir}`);
-  console.log(`  TUI: ${options.noTui ? "禁用" : "启用"}`);
   console.log("");
   console.log(getInstallModelPlan(options.providers as ProviderId[], options.quota));
   console.log("");
@@ -77,6 +87,27 @@ async function handleInstall(args: string[]): Promise<void> {
 
   const configPath = await install(options, installConfig);
   console.log(`安装完成。配置文件: ${configPath}`);
+  console.log("如需调整模型 provider，可运行: omo-sci configure --providers <list> --quota <tokens>");
+}
+
+async function handleConfigure(args: string[]): Promise<void> {
+  const options = parseInstallArgs(args, { requireProviders: true });
+
+  console.log("正在配置 omo-sci 模型...");
+  console.log(`  提供商: ${options.providers.join(", ")}`);
+  console.log(`  月配额: ${(options.quota / 100000000).toFixed(1)} 亿 tokens`);
+  if (options.configDir) console.log(`  配置目录: ${options.configDir}`);
+  if (options.projectDir) console.log(`  项目目录: ${options.projectDir}`);
+  console.log("");
+  console.log(getInstallModelPlan(options.providers as ProviderId[], options.quota));
+  console.log("");
+
+  const installConfig: { configDir?: string; projectDir?: string } = {};
+  if (options.configDir) installConfig.configDir = options.configDir;
+  if (options.projectDir) installConfig.projectDir = options.projectDir;
+
+  const configPath = await install(options, installConfig);
+  console.log(`配置完成。配置文件: ${configPath}`);
 }
 
 async function handleDoctor(args: string[]): Promise<void> {
@@ -136,7 +167,10 @@ interface InstallArgs {
   projectDir?: string;
 }
 
-function parseInstallArgs(args: string[]): InstallArgs {
+function parseInstallArgs(
+  args: string[],
+  settings: { requireProviders?: boolean } = {},
+): InstallArgs {
   let noTui = false;
   let providers: string[] = [];
   let quota = 500000000;
@@ -180,7 +214,7 @@ function parseInstallArgs(args: string[]): InstallArgs {
     }
   }
 
-  if (providers.length === 0) {
+  if (settings.requireProviders && providers.length === 0) {
     console.error("--providers 是必填项，例如: --providers deepseek,qwen-bailian");
     process.exit(1);
   }
@@ -193,7 +227,8 @@ function showHelp(): void {
 omo-sci — 医学科研 AI 智能体团队
 
 用法:
-  omo-sci install [选项]      安装 omo-sci 插件
+  omo-sci install [选项]      安装 omo-sci 插件（可零参数）
+  omo-sci configure [选项]    配置/更新模型 provider 和配额
   omo-sci doctor [选项]       环境诊断
   omo-sci status [选项]       查看项目 Passport/Boulder 状态
   omo-sci config              查看安装配置状态
@@ -202,7 +237,13 @@ omo-sci — 医学科研 AI 智能体团队
   omo-sci --help              显示此帮助
 
 install 选项:
-  --no-tui                    跳过交互式界面
+  --no-tui                    兼容参数；当前安装流程默认非交互
+  --providers <list>          可选。提供商列表（逗号分隔），默认: opencode-go
+  --quota <number>            可选。月配额（tokens），默认: 500000000
+  --config-dir <path>         配置输出目录（默认 ~/.config/opencode）
+  --project-dir <path>        项目目录（默认当前目录）
+
+configure 选项:
   --providers <list>          提供商列表（逗号分隔），例如: deepseek,qwen-bailian
   --quota <number>            月配额（tokens），例如: 500000000
   --config-dir <path>         配置输出目录（默认 ~/.config/opencode）
@@ -217,8 +258,9 @@ status 选项:
   --project <dir>             指定项目目录（默认当前目录）
 
 示例:
-  omo-sci install --providers deepseek,qwen-bailian --quota 500000000
-  omo-sci install --no-tui --providers deepseek --quota 200000000 --project-dir /tmp/test
+  omo-sci install
+  omo-sci configure --providers deepseek,qwen-bailian --quota 500000000
+  omo-sci install --no-tui --project-dir /tmp/test
   omo-sci doctor
   omo-sci doctor --json
   omo-sci status

@@ -47,10 +47,20 @@ omo-sci 的目标是把一个临床研究想法，逐步推进成可执行的研
 在你要开展研究项目的目录里运行：
 
 ```bash
-bunx omo-sci install --providers opencode-go,deepseek --quota 500000000
+bunx github:xxxxchaos/oh-my-sci install
 ```
 
 参数说明：
+
+- 默认会先用 `opencode-go` 生成一套可运行配置。
+- 如果你要指定自己的模型 provider，可以在安装后运行 `omo-sci configure`。
+- 将来发布到 npm 后，同样可以使用 `bunx omo-sci install`。
+
+```bash
+omo-sci configure --providers opencode-go,deepseek --quota 500000000
+```
+
+`configure` 参数说明：
 
 - `--providers`：你实际可用的模型 provider，逗号分隔。只配置自己能调用的 provider。
 - `--quota`：月 token 配额，用于本地用量提醒。
@@ -153,7 +163,7 @@ omo-sci 支持以下 provider：
 如果只想用一个 provider，例如只用 Qwen：
 
 ```bash
-bunx omo-sci install --providers qwen-bailian --quota 500000000
+omo-sci configure --providers qwen-bailian --quota 500000000
 ```
 
 这样 9 个 agent 都会写入 Qwen 模型，不会默认去调用 DeepSeek 或其他 provider。

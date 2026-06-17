@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.1.2 (2026-06-17)
+
+- 简化安装命令：`omo-sci install` 现在可零参数运行
+- 安装默认使用 `opencode-go` 和 5 亿 token 本地提醒额度，先生成一套可运行配置
+- 新增 `omo-sci configure` / `omo-sci setup`，用于安装后配置或更新 providers 与 quota
+- README 和安装/模型配置指南改为“两段式”：先安装，再配置模型
+- 保留高级用法：`install --providers ... --quota ...` 仍可一次完成安装和配置
+
 ## v0.1.1 (2026-06-16)
 
 - 安装时输出 9 个 agent 的模型分配计划，明确实际写入 `.opencode/agents/*.md` 的 `model` / `model_fallback`

@@ -11,10 +11,18 @@
 
 ```bash
 # 在你的项目目录中安装 omo-sci
-bunx omo-sci install --providers opencode-go,deepseek --quota 500000000
+bunx github:xxxxchaos/oh-my-sci install
 ```
 
-安装时会输出一张“模型分配计划”表，明确每个 agent 实际写入 `.opencode/agents/*.md` 的 `model` 和 `model_fallback`。安装完成后，OpenCode 会自动加载 omo-sci 插件和 9 个医学科研 agent。
+安装时会先使用默认 provider `opencode-go` 生成一套可运行配置，并输出“模型分配计划”表，明确每个 agent 实际写入 `.opencode/agents/*.md` 的 `model` 和 `model_fallback`。安装完成后，OpenCode 会自动加载 omo-sci 插件和 9 个医学科研 agent。
+
+将来发布到 npm 后，也可以使用 `bunx omo-sci install`。
+
+如果你要指定自己的模型 provider，在安装后运行：
+
+```bash
+omo-sci configure --providers opencode-go,deepseek --quota 500000000
+```
 
 ## 验证安装
 
@@ -46,7 +54,7 @@ bun run bin/omo-sci.ts config
 ```
 
 首次安装时会生成默认配置文件 `~/.config/opencode/omo-sci.jsonc`。
-同时会把每个 agent 的实际运行模型写入当前项目的 `.opencode/agents/*.md`。建议在安装后运行 `doctor --models`，确认 agent 文件没有引用你未配置或不可用的模型，详情见 [模型配置指南](./model-setup.md)。
+同时会把每个 agent 的实际运行模型写入当前项目的 `.opencode/agents/*.md`。如果后续修改 provider 或 quota，运行 `omo-sci configure --providers ... --quota ...` 即可重写配置。建议在安装或配置后运行 `doctor --models`，确认 agent 文件没有引用你未配置或不可用的模型，详情见 [模型配置指南](./model-setup.md)。
 
 ## 快速上手
 

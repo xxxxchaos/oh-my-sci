@@ -5,7 +5,13 @@ import { describe, it, expect, afterEach } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { install, generateConfig, getInstallModelPlan, VALID_QUOTAS } from "../src/install";
+import {
+  DEFAULT_INSTALL_PROVIDERS,
+  install,
+  generateConfig,
+  getInstallModelPlan,
+  VALID_QUOTAS,
+} from "../src/install";
 import { loadConfig } from "../src/config";
 import type { ProviderId } from "../src/types";
 
@@ -68,6 +74,11 @@ describe("generateConfig", () => {
     expect(plan).toContain("archimedes");
     expect(plan).toContain("qwen-bailian/qwen3.7-max");
     expect(plan).not.toContain("deepseek/deepseek-v4-pro");
+  });
+
+  it("未传 providers 时模型计划使用默认 provider", () => {
+    const plan = getInstallModelPlan();
+    expect(plan).toContain(`${DEFAULT_INSTALL_PROVIDERS[0]}/`);
   });
 });
 
@@ -193,19 +204,24 @@ describe("install", () => {
     expect(jsonContent).toContain('"omo-sci"');
   });
 
-  it("should fail without providers", async () => {
+  it("不传 providers 时使用默认 provider 安装", async () => {
     tmpDir = mkdtempSync(join(tmpdir(), "omo-sci-test-"));
 
-    await expect(
-      install(
-        {
-          noTui: true,
-          providers: [],
-          quota: 200000000,
-        },
-        { configDir: tmpDir, projectDir: tmpDir },
-      ),
-    ).rejects.toThrow("providers 不能为空");
+    const configPath = await install(
+      {
+        noTui: true,
+      },
+      { configDir: tmpDir, projectDir: tmpDir },
+    );
+
+    const config = loadConfig(configPath);
+    const providers = Object.values(config.router.categories)
+      .flatMap(category => category.fallback_chain)
+      .map(model => model.provider);
+    expect(providers.every(provider => provider === DEFAULT_INSTALL_PROVIDERS[0])).toBe(true);
+
+    const dubin = await Bun.file(join(tmpDir, ".opencode", "agents", "dubin.md")).text();
+    expect(dubin).toContain(`model: ${DEFAULT_INSTALL_PROVIDERS[0]}/`);
   });
 
   it("should reject invalid provider", async () => {

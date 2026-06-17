@@ -42,7 +42,13 @@ omo-sci 支持国内 7 大模型提供商：
   archimedes   deep-reasoning        deepseek/deepseek-v4-pro         opencode-go/qwen3.7-max
 ```
 
-如果你只选择一个 provider，例如 `--providers qwen-bailian`，9 个 agent 都会优先使用 `qwen-bailian/qwen3.7-max`，不会再保留默认的 DeepSeek 或 OpenCode Go 模型。
+默认 `omo-sci install` 会先使用 `opencode-go` 生成可运行配置。安装后可用 `omo-sci configure` 调整模型来源：
+
+```bash
+omo-sci configure --providers qwen-bailian --quota 500000000
+```
+
+如果你只选择一个 provider，例如 `qwen-bailian`，9 个 agent 都会优先使用 `qwen-bailian/qwen3.7-max`，不会再保留默认的 DeepSeek 或 OpenCode Go 模型。
 
 ### 示例配置
 
