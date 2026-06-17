@@ -68,6 +68,7 @@ export const PROVIDER_REGISTRY: Partial<Record<ProviderId, {
     name: 'OpenCode Go (包月订阅)',
     models: [
       { provider: 'opencode-go', model_id: 'qwen3.7-max', context_window: 1_000_000, max_output: 128_000 },
+      { provider: 'opencode-go', model_id: 'qwen3.7-plus', context_window: 1_000_000, max_output: 128_000 },
       { provider: 'opencode-go', model_id: 'deepseek-v4-pro', context_window: 1_000_000, max_output: 128_000 },
       { provider: 'opencode-go', model_id: 'glm-5.1', context_window: 1_000_000, max_output: 128_000 },
       { provider: 'opencode-go', model_id: 'glm-5.2', context_window: 1_000_000, max_output: 128_000 },

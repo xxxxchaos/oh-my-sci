@@ -342,6 +342,12 @@ export const MODEL_DESCRIPTIONS: Record<string, {
   caveats: string;
 }> = {
   // === OpenCode Go 订阅路径 ===
+  'opencode-go/qwen3.7-plus': {
+    desc: '阿里千问 Plus 模型',
+    providerDesc: '来源: OpenCode Go 订阅（月费 ¥72，配额内不限量）',
+    strengths: 'Agent 能力持平 Max（MCP-Atlas 76.4），价格约 1/6，支持视觉',
+    caveats: 'GPQA 92.4 级推理不如 Max，编排层不依赖 GPQA 级推理',
+  },
   'opencode-go/qwen3.7-max': {
     desc: '阿里千问旗舰模型',
     providerDesc: '来源: OpenCode Go 订阅（月费 ¥72，配额内不限量）',
@@ -369,8 +375,8 @@ export const MODEL_DESCRIPTIONS: Record<string, {
   'opencode-go/minimax-m3': {
     desc: 'MiniMax M3（通过 Go 订阅）',
     providerDesc: '来源: OpenCode Go 订阅（月费 ¥72，配额内不限量）',
-    strengths: '超长程韧性最强，原生多模态',
-    caveats: '纯 benchmark 与 Claude 有差距',
+    strengths: '超长程韧性最强，原生多模态；适合快速摸底模式（MSA 稀疏注意力，1M 上下文极快）',
+    caveats: '纯 benchmark 与 Claude 有差距；深度推理不如 Kimi K2.6',
   },
   'opencode-go/deepseek-v4-flash': {
     desc: 'DeepSeek V4 Flash（通过 Go 订阅）',

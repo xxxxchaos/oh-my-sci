@@ -1,8 +1,9 @@
 import type { OmoSciConfig } from '../types';
 import { loadConfig } from '../config';
 import type { CheckResult } from './reporter';
+import { checkModelVersions, formatModelVersionResults } from './model-version-check';
 
-export interface EnvCheckOptions { stage?: string; mcpOnly?: boolean; }
+export interface EnvCheckOptions { stage?: string; mcpOnly?: boolean; includeModelChecks?: boolean; }
 
 export async function runAllChecks(config?: OmoSciConfig, options: EnvCheckOptions = {}): Promise<CheckResult[]> {
   const cfg = config ?? loadConfig();
@@ -36,6 +37,21 @@ export async function runAllChecks(config?: OmoSciConfig, options: EnvCheckOptio
       results.push({ category: 'API', name: `分类: ${cat}`, status: 'fail', message: '无已配置模型。' });
     } else {
       results.push({ category: 'API', name: `分类: ${cat}`, status: 'pass', message: `${catConfig.fallback_chain.length} 模型。主: ${catConfig.fallback_chain[0]?.model_id}` });
+    }
+  }
+
+  // 模型版本检查
+  if (options.includeModelChecks) {
+    const projectDir = process.cwd();
+    const versionResults = checkModelVersions(projectDir);
+    for (const vr of versionResults) {
+      if (vr.status === 'ok') continue;
+      results.push({
+        category: '模型版本',
+        name: vr.agent,
+        status: vr.status === 'deprecated' ? 'fail' : 'warn',
+        message: `${vr.currentModel} → ${vr.latestVersion}: ${vr.note}`,
+      });
     }
   }
 

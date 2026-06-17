@@ -35,7 +35,7 @@ interface AgentDef {
 
 // Default model per capability category (matches design spec section 三)
 const CATEGORY_DEFAULT_MODEL: Record<CapabilityCategory, string> = {
-  'agent-orchestration': 'opencode-go/qwen3.7-max',
+  'agent-orchestration': 'opencode-go/qwen3.7-plus',
   'deep-reasoning': 'deepseek/deepseek-v4-pro',
   'chinese-writing': 'opencode-go/glm-5.2',
   'fast-search': 'opencode-go/minimax-m3',

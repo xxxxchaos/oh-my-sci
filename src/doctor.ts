@@ -64,15 +64,34 @@ export async function runDoctor(options: DoctorOptions = {}): Promise<DoctorRepo
   };
 }
 
+function mapCheckStatus(status: string): 'ok' | 'warn' | 'error' {
+  if (status === 'ok') return 'ok';
+  if (status === 'warn') return 'warn';
+  return 'error';
+}
+
 function checkAgentModels(projectDir: string): HealthCheck[] {
   try {
     const config = loadConfig();
     const results = checkInstalledAgentModels(projectDir, config);
-    return results.map((result) => ({
+    const healthChecks = results.map((result) => ({
       name: `模型配置/${result.agent}`,
-      status: result.status === 'ok' ? 'ok' : result.status === 'warn' ? 'warn' : 'error',
+      status: mapCheckStatus(result.status),
       message: result.message,
     }));
+
+    // 模型版本检查
+    const versionResults = checkModelVersions(projectDir);
+    for (const vr of versionResults) {
+      if (vr.status === 'ok') continue;
+      healthChecks.push({
+        name: `模型版本/${vr.agent}`,
+        status: vr.status === 'deprecated' ? 'error' as const : 'warn' as const,
+        message: `${vr.currentModel} → ${vr.latestVersion}: ${vr.note}`,
+      });
+    }
+
+    return healthChecks;
   } catch (err) {
     return [{
       name: '模型配置',
@@ -162,6 +181,7 @@ async function checkR(): Promise<HealthCheck> {
 import { OMO_SCI_CONFIG_PATH, OPENCODE_CONFIG_DIR } from "./constants";
 import { loadConfig } from "./config";
 import { checkInstalledAgentModels } from "./model-config";
+import { checkModelVersions, formatModelVersionResults } from "./environment/model-version-check";
 
 /** 获取 omo-sci 配置目录 */
 export function getConfigDir(): string {
