@@ -793,3 +793,322 @@ export function renderAllSwitchPicker(projectDir?: string): string {
 
   return lines.join('\n');
 }
+
+// ====================================================================
+// 两层模型选择 — 类型定义
+// ====================================================================
+
+export interface UniqueModelProvider {
+  key: string;
+  provider: string;
+  configured: boolean;
+  providerDesc: string;
+}
+
+export interface UniqueModelInfo {
+  modelId: string;
+  desc: string;
+  strengths: string;
+  providers: UniqueModelProvider[];
+}
+
+// ====================================================================
+// 两层模型选择 — 辅助函数
+// ====================================================================
+
+/**
+ * 获取模型族通用描述（从 MODEL_DESCRIPTIONS 中查找第一个匹配项）
+ */
+function getModelFamilyMeta(modelId: string): { desc: string; strengths: string } {
+  for (const [key, info] of Object.entries(MODEL_DESCRIPTIONS)) {
+    if (key.endsWith(`/${modelId}`)) {
+      // 去掉 provider 特定后缀（括号内内容），保留通用描述
+      const desc = info.desc.replace(/（.*$/g, '').replace(/\(.*$/g, '').trim();
+      return { desc, strengths: info.strengths };
+    }
+  }
+  return { desc: '', strengths: '' };
+}
+
+/**
+ * 检查某个 provider 是否已在 omo-sci 配置中启用
+ */
+export function isProviderConfigured(providerId: string): boolean {
+  const config = loadConfig();
+  return Object.values(config.router.categories).some(cat =>
+    cat.fallback_chain.some(spec => spec.provider === providerId),
+  );
+}
+
+/**
+ * 获取 provider 的短标签（用于模型列表"可用"行）
+ */
+function getProviderShortTag(providerId: string): string {
+  const tags: Record<string, string> = {
+    'opencode-go': 'OpenCode Go 订阅',
+    deepseek: 'DeepSeek API',
+    'qwen-bailian': '百炼 API',
+    zhipu: '智谱 API',
+    kimi: 'Kimi API',
+    minimax: 'MiniMax API',
+    'tencent-hy': '腾讯混元 API',
+  };
+  return tags[providerId] ?? providerId;
+}
+
+/**
+ * 从 PROVIDER_REGISTRY 收集所有模型族（按 model_id 去重），
+ * 统计每个模型的可用 provider 和配置状态。
+ *
+ * 排序：有已配置 provider 的模型在前，其余在后。
+ * provider 内按推荐优先级排列。
+ */
+export function collectUniqueModels(): UniqueModelInfo[] {
+  const seenModels = new Map<string, UniqueModelInfo>();
+
+  // 按推荐优先级遍历 provider
+  const providerPriority: string[] = [
+    'opencode-go',
+    'deepseek',
+    'qwen-bailian',
+    'zhipu',
+    'kimi',
+    'minimax',
+    'tencent-hy',
+  ];
+
+  for (const providerId of providerPriority) {
+    const entry = PROVIDER_REGISTRY[providerId as ProviderId];
+    if (!entry) continue;
+
+    for (const spec of entry.models) {
+      const modelId = spec.model_id;
+
+      if (!seenModels.has(modelId)) {
+        const meta = getModelFamilyMeta(modelId);
+        seenModels.set(modelId, {
+          modelId,
+          desc: meta.desc,
+          strengths: meta.strengths,
+          providers: [],
+        });
+      }
+
+      const configured = isProviderConfigured(providerId);
+      const key = modelKey(spec);
+      const descEntry = MODEL_DESCRIPTIONS[key];
+      const providerDesc =
+        descEntry?.providerDesc ?? getProviderShortTag(providerId);
+
+      seenModels.get(modelId)!.providers.push({
+        key,
+        provider: providerId,
+        configured,
+        providerDesc,
+      });
+    }
+  }
+
+  // 转为数组并按"有已配置 provider → 无"排序
+  const result = Array.from(seenModels.values());
+  result.sort((a, b) => {
+    const aHas = a.providers.some(p => p.configured);
+    const bHas = b.providers.some(p => p.configured);
+    if (aHas && !bHas) return -1;
+    if (!aHas && bHas) return 1;
+    return 0;
+  });
+
+  return result;
+}
+
+// ====================================================================
+// 两层模型选择 — 面板渲染
+// ====================================================================
+
+const PER_PAGE_DEFAULT = 5;
+
+/**
+ * renderModelFamilyPicker — 第一层：选择模型族（分页显示）
+ *
+ * agentName 为 'all' 时显示"全部 agent 切换"标题。
+ */
+export function renderModelFamilyPicker(
+  agentName: string,
+  page: number,
+  perPage: number = PER_PAGE_DEFAULT,
+  projectDir?: string,
+): string {
+  const isAllSwitch = agentName === 'all';
+  const allModels = collectUniqueModels();
+  const totalPages = Math.ceil(allModels.length / perPage);
+  const pageStart = page * perPage;
+  const pageModels = allModels.slice(pageStart, pageStart + perPage);
+
+  // Agent 显示名 / 当前模型
+  let displayName: string;
+  let currentModel = '';
+  if (!isAllSwitch) {
+    displayName =
+      AGENT_DISPLAY_NAMES[agentName as AgentName] ?? agentName;
+    const statuses = getAgentStatus(projectDir);
+    const agent = statuses.find(s => s.agentName === agentName);
+    currentModel = agent?.currentModel ?? '未配置';
+  } else {
+    displayName = '全部 agent';
+  }
+
+  const headerLine = isAllSwitch
+    ? '  全部 agent 切换为同一模型'
+    : `  为 ${displayName} 选择模型`;
+
+  const lines: string[] = [];
+  lines.push(boxTop());
+  lines.push(boxLine(padVisual(headerLine, CONTENT_W)));
+  if (!isAllSwitch) {
+    lines.push(boxLine(padVisual(`  当前: ${currentModel}`, CONTENT_W)));
+  }
+  lines.push(boxSep());
+  lines.push(boxEmpty());
+
+  if (allModels.length === 0) {
+    lines.push(
+      boxLine(
+        padVisual(
+          '  无可选模型（请先运行 omo-sci configure 配置模型）',
+          CONTENT_W,
+        ),
+      ),
+    );
+  } else {
+    lines.push(boxLine(padVisual('  选择模型 (按推荐度排序):', CONTENT_W)));
+    lines.push(boxEmpty());
+
+    const currentModelId = currentModel.split('/').pop() || '';
+
+    for (let i = 0; i < pageModels.length; i++) {
+      const info = pageModels[i];
+      const globalIdx = pageStart + i + 1;
+      const isCurrent = info.modelId === currentModelId;
+
+      // 标题行
+      const star = isCurrent ? ' ⭐' : '';
+      const curLabel = isCurrent ? '  ← 当前' : '';
+      const line = `  ${globalIdx}.${star} ${info.modelId}${curLabel}`;
+      lines.push(boxLine(padVisual(line, CONTENT_W)));
+
+      // 描述行
+      const descParts: string[] = [];
+      if (info.desc) descParts.push(info.desc);
+      if (info.strengths) descParts.push(info.strengths);
+      if (descParts.length > 0) {
+        let descLine = `     ${descParts.join(' · ')}`;
+        if (visualLen(descLine) > CONTENT_W - 4) {
+          descLine = descLine.slice(0, CONTENT_W - 8) + '…';
+        }
+        lines.push(boxLine(padVisual(descLine, CONTENT_W)));
+      }
+
+      // 可用 provider 行
+      const availItems = info.providers.map(p => {
+        const tag = getProviderShortTag(p.provider);
+        return p.configured ? tag : `${tag}(未配置)`;
+      });
+      let availLine = `     可用: ${availItems.join(' / ')}`;
+      if (visualLen(availLine) > CONTENT_W - 4) {
+        availLine = availLine.slice(0, CONTENT_W - 8) + '…';
+      }
+      lines.push(boxLine(padVisual(availLine, CONTENT_W)));
+
+      lines.push(boxEmpty());
+    }
+  }
+
+  // 导航栏
+  const navItems: string[] = [];
+  const validRange = `[1-${pageModels.length}] 选择模型`;
+  navItems.push(validRange);
+  if (page < totalPages - 1) navItems.push('[N] 下一页');
+  if (page > 0) navItems.push('[P] 上一页');
+  navItems.push('[Q] 返回');
+  lines.push(boxLine(padVisual('  ' + navItems.join('  '), CONTENT_W)));
+  lines.push(boxEmpty());
+  lines.push(boxBottom());
+
+  return lines.join('\n');
+}
+
+/**
+ * renderProviderPicker — 第二层：选择具体 provider
+ */
+export function renderProviderPicker(
+  modelInfo: UniqueModelInfo,
+  agentName: string,
+  projectDir?: string,
+): string {
+  const isAllSwitch = agentName === 'all';
+  const displayName = isAllSwitch
+    ? '全部 agent'
+    : (AGENT_DISPLAY_NAMES[agentName as AgentName] ?? agentName);
+
+  const headerLine = isAllSwitch
+    ? `  为全部 agent 选择 ${modelInfo.modelId} 的来源`
+    : `  为 ${displayName} 选择 ${modelInfo.modelId} 的来源`;
+
+  const lines: string[] = [];
+  lines.push(boxTop());
+  lines.push(boxLine(padVisual(headerLine, CONTENT_W)));
+  lines.push(boxSep());
+  lines.push(boxEmpty());
+
+  for (let i = 0; i < modelInfo.providers.length; i++) {
+    const p = modelInfo.providers[i];
+    const idx = i + 1;
+
+    const isRecommended = p.configured && i === 0;
+    const recLabel = isRecommended ? '  ← ⭐ 推荐' : '';
+    const nameLine = `  ${idx}. ${p.key}${recLabel}`;
+    lines.push(boxLine(padVisual(nameLine, CONTENT_W)));
+
+    // 来源描述
+    if (p.providerDesc) {
+      // MODEL_DESCRIPTIONS 中的 providerDesc 已含"来源: "前缀，避免重复
+      const descPrefix = /^来源[：:]/.test(p.providerDesc) ? '' : '来源: ';
+      const descLine = `     ${descPrefix}${p.providerDesc}`;
+      const truncated =
+        visualLen(descLine) > CONTENT_W - 4
+          ? descLine.slice(0, CONTENT_W - 8) + '…'
+          : descLine;
+      lines.push(boxLine(padVisual(truncated, CONTENT_W)));
+    }
+
+    // 配置状态
+    if (p.configured) {
+      lines.push(boxLine(padVisual('     ✓ 已配置此 provider', CONTENT_W)));
+    } else {
+      lines.push(
+        boxLine(
+          padVisual(
+            '     ⚠ 未配置此 provider (需先运行 omo-sci configure)',
+            CONTENT_W,
+          ),
+        ),
+      );
+    }
+
+    lines.push(boxEmpty());
+  }
+
+  lines.push(
+    boxLine(
+      padVisual(
+        `  [1-${modelInfo.providers.length}] 选择来源  [Q] 返回上级`,
+        CONTENT_W,
+      ),
+    ),
+  );
+  lines.push(boxEmpty());
+  lines.push(boxBottom());
+
+  return lines.join('\n');
+}

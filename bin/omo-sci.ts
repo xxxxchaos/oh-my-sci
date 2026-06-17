@@ -26,11 +26,11 @@ import {
   setAgentModel,
   resetAgentModels,
   renderMainPanel,
-  renderModelPicker,
   renderProviderPool,
-  renderAllSwitchPicker,
   AGENT_NAMES,
-  collectAllModels,
+  collectUniqueModels,
+  renderModelFamilyPicker,
+  renderProviderPicker,
 } from "../src/commands/sci-agent";
 import type { ProviderId } from "../src/types";
 import { PROVIDER_WHITELIST } from "../src/router/provider";
@@ -435,47 +435,131 @@ async function handleAgentSwitch(
   const agentName = AGENT_NAMES[agentIndex - 1];
   if (!agentName) return;
 
-  console.clear();
-  console.log(renderModelPicker(agentName, projectDir));
-  const modelChoice = await prompt('输入模型编号 [1-N] 或 Q 返回: ');
-
-  if (!modelChoice || modelChoice.toUpperCase() === 'Q') return;
-
-  const modelIndex = parseInt(modelChoice, 10);
-  const allModels = collectAllModels();
-
-  if (isNaN(modelIndex) || modelIndex < 1 || modelIndex > allModels.length) {
-    console.log('无效的模型编号。');
+  const uniqueModels = collectUniqueModels();
+  if (uniqueModels.length === 0) {
+    console.log('无可选模型。请先运行 omo-sci configure。');
     await prompt('按回车返回...');
     return;
   }
 
-  const chosenModel = allModels[modelIndex - 1].key;
-  const result = setAgentModel(agentName, chosenModel, projectDir);
-  console.log(result.message);
-  await prompt('\n按回车返回...');
+  const PER_PAGE = 5;
+  let page = 0;
+  const totalPages = Math.ceil(uniqueModels.length / PER_PAGE);
+
+  // Layer 1: Select model family (with pagination)
+  while (true) {
+    console.clear();
+    console.log(renderModelFamilyPicker(agentName, page, PER_PAGE, projectDir));
+    const choice = await prompt('输入选项: ');
+
+    if (!choice) continue;
+    const upper = choice.toUpperCase();
+
+    if (upper === 'Q') return;
+    if (upper === 'N') {
+      if (page < totalPages - 1) page++;
+      continue;
+    }
+    if (upper === 'P') {
+      if (page > 0) page--;
+      continue;
+    }
+
+    const idx = parseInt(choice, 10);
+    if (isNaN(idx) || idx < 1 || idx > uniqueModels.length) continue;
+
+    const selectedModel = uniqueModels[idx - 1];
+    if (selectedModel.providers.length === 0) continue;
+
+    // Single provider: auto-apply, skip layer 2
+    if (selectedModel.providers.length === 1) {
+      const result = setAgentModel(agentName, selectedModel.providers[0].key, projectDir);
+      console.clear();
+      console.log(result.message);
+      await prompt('\n按回车返回...');
+      return;
+    }
+
+    // Layer 2: Select provider
+    console.clear();
+    console.log(renderProviderPicker(selectedModel, agentName, projectDir));
+    const pChoice = await prompt('输入选项: ');
+
+    if (!pChoice || pChoice.toUpperCase() === 'Q') continue;
+
+    const pIdx = parseInt(pChoice, 10);
+    if (isNaN(pIdx) || pIdx < 1 || pIdx > selectedModel.providers.length) continue;
+
+    const result = setAgentModel(agentName, selectedModel.providers[pIdx - 1].key, projectDir);
+    console.clear();
+    console.log(result.message);
+    await prompt('\n按回车返回...');
+    return;
+  }
 }
 
 async function handleAllSwitch(projectDir?: string, version?: string): Promise<void> {
-  console.clear();
-  console.log(renderAllSwitchPicker(projectDir));
-  const modelChoice = await prompt('输入模型编号 [1-N] 或 Q 返回: ');
-
-  if (!modelChoice || modelChoice.toUpperCase() === 'Q') return;
-
-  const modelIndex = parseInt(modelChoice, 10);
-  const allModels = collectAllModels();
-
-  if (isNaN(modelIndex) || modelIndex < 1 || modelIndex > allModels.length) {
-    console.log('无效的模型编号。');
+  const uniqueModels = collectUniqueModels();
+  if (uniqueModels.length === 0) {
+    console.log('无可选模型。请先运行 omo-sci configure。');
     await prompt('按回车返回...');
     return;
   }
 
-  const chosenModel = allModels[modelIndex - 1].key;
-  const result = setAgentModel('all', chosenModel, projectDir);
-  console.log(result.message);
-  await prompt('\n按回车返回...');
+  const PER_PAGE = 5;
+  let page = 0;
+  const totalPages = Math.ceil(uniqueModels.length / PER_PAGE);
+
+  // Layer 1: Select model family (with pagination)
+  while (true) {
+    console.clear();
+    console.log(renderModelFamilyPicker('all', page, PER_PAGE, projectDir));
+    const choice = await prompt('输入选项: ');
+
+    if (!choice) continue;
+    const upper = choice.toUpperCase();
+
+    if (upper === 'Q') return;
+    if (upper === 'N') {
+      if (page < totalPages - 1) page++;
+      continue;
+    }
+    if (upper === 'P') {
+      if (page > 0) page--;
+      continue;
+    }
+
+    const idx = parseInt(choice, 10);
+    if (isNaN(idx) || idx < 1 || idx > uniqueModels.length) continue;
+
+    const selectedModel = uniqueModels[idx - 1];
+    if (selectedModel.providers.length === 0) continue;
+
+    // Single provider: auto-apply, skip layer 2
+    if (selectedModel.providers.length === 1) {
+      const result = setAgentModel('all', selectedModel.providers[0].key, projectDir);
+      console.clear();
+      console.log(result.message);
+      await prompt('\n按回车返回...');
+      return;
+    }
+
+    // Layer 2: Select provider
+    console.clear();
+    console.log(renderProviderPicker(selectedModel, 'all', projectDir));
+    const pChoice = await prompt('输入选项: ');
+
+    if (!pChoice || pChoice.toUpperCase() === 'Q') continue;
+
+    const pIdx = parseInt(pChoice, 10);
+    if (isNaN(pIdx) || pIdx < 1 || pIdx > selectedModel.providers.length) continue;
+
+    const result = setAgentModel('all', selectedModel.providers[pIdx - 1].key, projectDir);
+    console.clear();
+    console.log(result.message);
+    await prompt('\n按回车返回...');
+    return;
+  }
 }
 
 interface InstallArgs {
