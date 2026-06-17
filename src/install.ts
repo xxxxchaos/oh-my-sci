@@ -6,6 +6,7 @@
  */
 
 import * as path from "node:path";
+import * as fsSync from "node:fs";
 import { OMO_SCI_CONFIG_PATH, OPENCODE_CONFIG_DIR } from "./constants";
 import type { OmoSciConfig, ProviderId, CapabilityCategory } from "./types";
 import { PROVIDER_WHITELIST, getAvailableModels } from "./router/provider";
@@ -198,10 +199,28 @@ export async function install(
 
   // ====== 写入 opencode.json（OpenCode 注册）======
   const opencodeJsonPath = path.join(projectDir, "opencode.json");
-  const opencodeJsonContent = JSON.stringify({ plugin: ["omo-sci"] }, null, 2) + "\n";
+  const opencodeJsonContent = JSON.stringify(mergeOpencodeConfig(opencodeJsonPath), null, 2) + "\n";
   await Bun.write(opencodeJsonPath, opencodeJsonContent);
 
   return configPath;
+}
+
+function mergeOpencodeConfig(opencodeJsonPath: string): Record<string, unknown> {
+  let existing: Record<string, unknown> = {};
+
+  if (fsSync.existsSync(opencodeJsonPath)) {
+    try {
+      existing = JSON.parse(fsSync.readFileSync(opencodeJsonPath, "utf8")) as Record<string, unknown>;
+    } catch {
+      existing = {};
+    }
+  }
+
+  const plugins = Array.isArray(existing.plugin) ? existing.plugin : [];
+  return {
+    ...existing,
+    plugin: Array.from(new Set([...plugins, "omo-sci"])),
+  };
 }
 
 export function getInstallModelPlan(

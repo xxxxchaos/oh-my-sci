@@ -1,8 +1,16 @@
 {
   "name": "omo-sci",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "医学科研 AI 智能体团队 — 面向中国临床研究者的 OpenCode 插件，覆盖选题设计、文献检索、数据分析、论文撰写、审稿到投稿全流程",
   "type": "module",
+  "homepage": "https://github.com/xxxxchaos/oh-my-sci#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xxxxchaos/oh-my-sci.git"
+  },
+  "bugs": {
+    "url": "https://github.com/xxxxchaos/oh-my-sci/issues"
+  },
   "main": "src/index.ts",
   "exports": {
     ".": "./src/index.ts",
@@ -41,6 +49,7 @@
     ".opencode/",
     "docs/",
     "CHANGELOG.md",
+    "CONTRIBUTORS.md",
     "README.md"
   ]
 }

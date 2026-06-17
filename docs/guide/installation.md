@@ -18,9 +18,18 @@ bunx github:xxxxchaos/oh-my-sci install
 
 将来发布到 npm 后，也可以使用 `bunx omo-sci install`。
 
+如果不熟悉命令行，安装后运行：
+
+```bash
+omo-sci setup
+```
+
+这个向导会集中提供安装、模型配置、状态检查、环境诊断和卸载入口。
+
 如果你要指定自己的模型 provider，在安装后运行：
 
 ```bash
+omo-sci configure
 omo-sci configure --providers opencode-go,deepseek --quota 500000000
 ```
 
@@ -29,8 +38,8 @@ omo-sci configure --providers opencode-go,deepseek --quota 500000000
 运行环境诊断工具：
 
 ```bash
-bun run bin/omo-sci.ts doctor
-bun run bin/omo-sci.ts doctor --models
+omo-sci doctor
+omo-sci doctor --models
 # 或通过 OpenCode TUI 输入 /sci-doctor
 ```
 
@@ -50,7 +59,7 @@ omo-sci 使用 6 个能力分类路由，每个分类需要至少配置一个模
 查看当前配置：
 
 ```bash
-bun run bin/omo-sci.ts config
+omo-sci config
 ```
 
 首次安装时会生成默认配置文件 `~/.config/opencode/omo-sci.jsonc`。
@@ -69,12 +78,17 @@ Dubin 会引导你完成意图访谈 — 只需用自然语言描述你的研究
 ## 卸载
 
 ```bash
-# 移除 omo-sci 生成的配置文件
-rm -rf ~/.config/opencode/omo-sci-profile/
-rm ~/.config/opencode/omo-sci.jsonc
+# 先预览将删除/更新的文件
+omo-sci uninstall --dry-run
 
-# 从项目 opencode.json 中移除 omo-sci plugin 条目
+# 交互确认卸载
+omo-sci uninstall
+
+# 非交互一键卸载
+omo-sci uninstall --yes
 ```
+
+默认会删除当前项目中 omo-sci 生成的 agent/command、从 `opencode.json` 移除 `omo-sci` 插件项，并删除全局配置 `~/.config/opencode/omo-sci.jsonc`。Dubin 进化记忆目录默认保留；如需同时删除，运行 `omo-sci uninstall --profile`。
 
 ## 常见问题
 
@@ -82,10 +96,10 @@ rm ~/.config/opencode/omo-sci.jsonc
 A: 确保 opencode.json 中包含 `"plugin": ["omo-sci"]`。重启 OpenCode 会话。
 
 **Q: MCP 工具找不到？**
-A: 运行 `bun run bin/omo-sci.ts doctor` 检查环境。确保已配置 PubMed Search MCP 等必要工具。
+A: 运行 `omo-sci doctor` 检查环境。确保已配置 PubMed Search MCP 等必要工具。
 
 **Q: 配置修改后不生效？**
 A: omo-sci 在启动时读取配置。重启 OpenCode 会话或重新加载插件。
 
 **Q: 某个 agent 调用了我没有配置的模型？**
-A: 重新运行 `omo-sci install --providers <你的 provider 列表> --quota <额度>`，或手动检查 `.opencode/agents/*.md`。`doctor --models` 会标记 agent frontmatter 中不在 omo-sci 配置里的模型。
+A: 重新运行 `omo-sci configure`，或手动检查 `.opencode/agents/*.md`。`doctor --models` 会标记 agent frontmatter 中不在 omo-sci 配置里的模型。

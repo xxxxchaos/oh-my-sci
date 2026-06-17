@@ -2,7 +2,7 @@
  * install 模块测试
  */
 import { describe, it, expect, afterEach } from "bun:test";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import {
@@ -202,6 +202,28 @@ describe("install", () => {
     // Verify opencode.json content
     const jsonContent = await opencodeJson.text();
     expect(jsonContent).toContain('"omo-sci"');
+  });
+
+  it("安装时合并已有 opencode.json，不覆盖其他插件和字段", async () => {
+    tmpDir = mkdtempSync(join(tmpdir(), "omo-sci-test-"));
+
+    writeFileSync(
+      join(tmpDir, "opencode.json"),
+      `${JSON.stringify({ plugin: ["other-plugin"], theme: "dark" }, null, 2)}\n`,
+    );
+
+    await install(
+      {
+        noTui: true,
+        providers: ["deepseek"],
+        quota: 500000000,
+      },
+      { configDir: tmpDir, projectDir: tmpDir },
+    );
+
+    const json = JSON.parse(await Bun.file(join(tmpDir, "opencode.json")).text());
+    expect(json.plugin).toEqual(["other-plugin", "omo-sci"]);
+    expect(json.theme).toBe("dark");
   });
 
   it("不传 providers 时使用默认 provider 安装", async () => {

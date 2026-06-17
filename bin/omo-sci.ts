@@ -5,18 +5,26 @@
  * 用法:
  *   omo-sci install
  *   omo-sci configure --providers deepseek,qwen-bailian --quota 500000000
+ *   omo-sci uninstall
  *   omo-sci doctor
  *   omo-sci status
  */
 
 import { runDoctor, formatDoctorReport, formatDoctorReportJson } from "../src/doctor";
-import { DEFAULT_INSTALL_PROVIDERS, getInstallModelPlan, install } from "../src/install";
+import { DEFAULT_INSTALL_PROVIDERS, DEFAULT_INSTALL_QUOTA, getInstallModelPlan, install, VALID_QUOTAS } from "../src/install";
 import { getStatus, formatStatus } from "../src/status";
 import { formatUsageBar, getUsageInfo } from "../src/commands/sci-usage";
 import { sciStart } from "../src/commands/sci-start";
 import { getProjectStatus, formatProjectStatus } from "../src/commands/sci-status";
 import type { ProviderId } from "../src/types";
 import * as path from "node:path";
+import { PROVIDER_WHITELIST } from "../src/router/provider";
+import {
+  formatUninstallPlan,
+  formatUninstallResult,
+  getUninstallPlan,
+  uninstall,
+} from "../src/uninstall";
 
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
@@ -33,9 +41,16 @@ async function main(): Promise<void> {
       break;
     }
     case "configure":
-    case "config:init":
-    case "setup": {
+    case "config:init": {
       await handleConfigure(args.slice(1));
+      break;
+    }
+    case "setup": {
+      await handleSetup(args.slice(1));
+      break;
+    }
+    case "uninstall": {
+      await handleUninstall(args.slice(1));
       break;
     }
     case "doctor": {
@@ -92,7 +107,9 @@ async function handleInstall(args: string[]): Promise<void> {
 }
 
 async function handleConfigure(args: string[]): Promise<void> {
-  const options = parseInstallArgs(args, { requireProviders: true });
+  const options = args.length === 0
+    ? await promptInstallOptions()
+    : parseInstallArgs(args, { requireProviders: true });
 
   console.log("正在配置 omo-sci 模型...");
   console.log(`  提供商: ${options.providers.join(", ")}`);
@@ -109,6 +126,76 @@ async function handleConfigure(args: string[]): Promise<void> {
 
   const configPath = await install(options, installConfig);
   printInstallLocations("配置完成", configPath, options.projectDir);
+}
+
+async function handleSetup(args: string[]): Promise<void> {
+  if (args.length > 0) {
+    await handleConfigure(args);
+    return;
+  }
+
+  if (!isInteractive()) {
+    showSetupHelp();
+    return;
+  }
+
+  console.log(renderTitle("omo-sci 设置向导"));
+  console.log("请选择要做的事：");
+  console.log("  1. 安装到当前项目");
+  console.log("  2. 配置/切换模型 provider");
+  console.log("  3. 查看项目状态");
+  console.log("  4. 运行环境诊断");
+  console.log("  5. 卸载当前项目的 omo-sci");
+  console.log("");
+
+  const choice = await promptText("输入编号", "1");
+  switch (choice.trim()) {
+    case "1":
+      await handleInstall([]);
+      break;
+    case "2":
+      await handleConfigure([]);
+      break;
+    case "3":
+      await handleStatus([]);
+      break;
+    case "4":
+      await handleDoctor(["--models"]);
+      break;
+    case "5":
+      await handleUninstall([]);
+      break;
+    default:
+      console.error("没有这个选项。运行 `omo-sci setup` 可重新打开向导。");
+      process.exit(1);
+  }
+}
+
+async function handleUninstall(args: string[]): Promise<void> {
+  const options = parseUninstallArgs(args);
+  const plan = getUninstallPlan(options);
+  console.log(formatUninstallPlan(plan));
+  console.log("");
+
+  if (options.dryRun) {
+    console.log("这是 dry-run 预览，没有删除任何文件。");
+    return;
+  }
+
+  if (!options.yes) {
+    if (!isInteractive()) {
+      console.error("非交互环境请加 --yes 确认卸载，或加 --dry-run 只预览。");
+      process.exit(1);
+    }
+    const answer = await promptText("确认卸载当前项目的 omo-sci？输入 y 继续", "n");
+    if (!["y", "yes"].includes(answer.trim().toLowerCase())) {
+      console.log("已取消卸载。");
+      return;
+    }
+  }
+
+  const result = uninstall(options);
+  console.log(formatUninstallResult(result));
 }
 
 function printInstallLocations(prefix: string, configPath: string, projectDirOption?: string): void {
@@ -178,6 +265,16 @@ interface InstallArgs {
   projectDir?: string;
 }
 
+interface UninstallArgs {
+  yes: boolean;
+  dryRun: boolean;
+  configDir?: string;
+  projectDir?: string;
+  keepConfig?: boolean;
+  keepProject?: boolean;
+  removeProfile?: boolean;
+}
+
 function parseInstallArgs(
   args: string[],
   settings: { requireProviders?: boolean } = {},
@@ -233,6 +330,150 @@ function parseInstallArgs(
   return { noTui, providers, quota, configDir, projectDir };
 }
 
+function parseUninstallArgs(args: string[]): UninstallArgs {
+  let yes = false;
+  let dryRun = false;
+  let configDir: string | undefined;
+  let projectDir: string | undefined;
+  let keepConfig = false;
+  let keepProject = false;
+  let removeProfile = false;
+
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+    switch (arg) {
+      case "--yes":
+      case "-y":
+        yes = true;
+        break;
+      case "--dry-run":
+        dryRun = true;
+        break;
+      case "--config-dir":
+        if (i + 1 < args.length) configDir = args[++i];
+        break;
+      case "--project-dir":
+        if (i + 1 < args.length) projectDir = args[++i];
+        break;
+      case "--keep-config":
+        keepConfig = true;
+        break;
+      case "--keep-project":
+        keepProject = true;
+        break;
+      case "--profile":
+        removeProfile = true;
+        break;
+      default:
+        if (arg.startsWith("--")) {
+          console.error(`未知选项: ${arg}`);
+          process.exit(1);
+        }
+    }
+  }
+
+  return { yes, dryRun, configDir, projectDir, keepConfig, keepProject, removeProfile };
+}
+
+async function promptInstallOptions(): Promise<InstallArgs> {
+  if (!isInteractive()) {
+    console.error("请指定 --providers，例如: omo-sci configure --providers opencode-go,deepseek --quota 500000000");
+    process.exit(1);
+  }
+
+  console.log(renderTitle("模型配置向导"));
+  console.log("选择你能调用的 provider，可输入编号或 provider 名，多个用逗号分隔。");
+  PROVIDER_WHITELIST.forEach((provider, index) => {
+    const defaultMark = DEFAULT_INSTALL_PROVIDERS.includes(provider) ? "（默认）" : "";
+    console.log(`  ${index + 1}. ${provider}${defaultMark}`);
+  });
+  console.log("");
+
+  const providerInput = await promptText("providers", DEFAULT_INSTALL_PROVIDERS.join(","));
+  const providers = parseProviderSelection(providerInput);
+
+  console.log("");
+  console.log("选择月 token 配额（只做本地提醒，不会限制 API）：");
+  VALID_QUOTAS.forEach((quota, index) => {
+    const defaultMark = quota === DEFAULT_INSTALL_QUOTA ? "（默认）" : "";
+    console.log(`  ${index + 1}. ${quota} (${(quota / 100000000).toFixed(1)} 亿)${defaultMark}`);
+  });
+  const quotaInput = await promptText("quota", String(DEFAULT_INSTALL_QUOTA));
+  const quota = parseQuotaSelection(quotaInput);
+
+  return { noTui: true, providers, quota };
+}
+
+function parseProviderSelection(input: string): string[] {
+  const selected = input
+    .split(",")
+    .map(part => part.trim())
+    .filter(Boolean)
+    .map(part => {
+      if (/^\d+$/.test(part)) {
+        const provider = PROVIDER_WHITELIST[Number(part) - 1];
+        if (provider) return provider;
+      }
+      return part;
+    });
+
+  const invalid = selected.filter(provider => !PROVIDER_WHITELIST.includes(provider as ProviderId));
+  if (selected.length === 0 || invalid.length > 0) {
+    console.error(`provider 无效: ${invalid.join(", ") || input}`);
+    console.error(`支持的 provider: ${PROVIDER_WHITELIST.join(", ")}`);
+    process.exit(1);
+  }
+  return selected;
+}
+
+function parseQuotaSelection(input: string): number {
+  const trimmed = input.trim();
+  const quota = /^\d+$/.test(trimmed) && trimmed.length <= 2
+    ? VALID_QUOTAS[Number(trimmed) - 1]
+    : Number(trimmed);
+  if (!quota || !VALID_QUOTAS.includes(quota as (typeof VALID_QUOTAS)[number])) {
+    console.error(`quota 无效。请选择: ${VALID_QUOTAS.join(", ")}`);
+    process.exit(1);
+  }
+  return quota;
+}
+
+async function promptText(label: string, defaultValue: string): Promise<string> {
+  const readline = await import("node:readline/promises");
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  try {
+    const answer = await rl.question(`${label} [${defaultValue}]: `);
+    return answer.trim() || defaultValue;
+  } finally {
+    rl.close();
+  }
+}
+
+function isInteractive(): boolean {
+  return Boolean(process.stdin.isTTY && process.stdout.isTTY);
+}
+
+function renderTitle(title: string): string {
+  return [
+    "╔══════════════════════════════════════════╗",
+    `║ ${title.padEnd(38, " ")} ║`,
+    "╚══════════════════════════════════════════╝",
+  ].join("\n");
+}
+
+function showSetupHelp(): void {
+  console.log([
+    "omo-sci setup 需要交互式终端。",
+    "",
+    "常用非交互命令:",
+    "  omo-sci install",
+    "  omo-sci configure --providers opencode-go,deepseek --quota 500000000",
+    "  omo-sci status",
+    "  omo-sci doctor --models",
+    "  omo-sci uninstall --yes",
+  ].join("\n"));
+}
+
 function showHelp(): void {
   console.log(`
 omo-sci — 医学科研 AI 智能体团队
@@ -240,6 +481,8 @@ omo-sci — 医学科研 AI 智能体团队
 用法:
   omo-sci install [选项]      安装 omo-sci 插件（可零参数）
   omo-sci configure [选项]    配置/更新模型 provider 和配额
+  omo-sci setup               打开安装/配置/诊断/卸载向导
+  omo-sci uninstall [选项]    卸载当前项目中的 omo-sci
   omo-sci doctor [选项]       环境诊断
   omo-sci status [选项]       查看项目 Passport/Boulder 状态
   omo-sci config              查看安装配置状态
@@ -255,9 +498,18 @@ install 选项:
   --project-dir <path>        项目目录（默认当前目录）
 
 configure 选项:
-  --providers <list>          提供商列表（逗号分隔），例如: deepseek,qwen-bailian
+  --providers <list>          提供商列表（逗号分隔）；不传时进入交互向导
   --quota <number>            月配额（tokens），例如: 500000000
   --config-dir <path>         配置输出目录（默认 ~/.config/opencode）
+  --project-dir <path>        项目目录（默认当前目录）
+
+uninstall 选项:
+  --yes, -y                   跳过确认，直接卸载
+  --dry-run                   只预览将删除/更新的文件
+  --keep-config               保留全局配置 ~/.config/opencode/omo-sci.jsonc
+  --keep-project              保留当前项目 .opencode/ 与 opencode.json
+  --profile                   同时删除 Dubin 进化记忆目录
+  --config-dir <path>         配置目录（默认 ~/.config/opencode）
   --project-dir <path>        项目目录（默认当前目录）
 
 doctor 选项:
@@ -270,7 +522,11 @@ status 选项:
 
 示例:
   omo-sci install
+  omo-sci setup
+  omo-sci configure
   omo-sci configure --providers deepseek,qwen-bailian --quota 500000000
+  omo-sci uninstall --dry-run
+  omo-sci uninstall --yes
   omo-sci install --no-tui --project-dir /tmp/test
   omo-sci doctor
   omo-sci doctor --json

@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.1.3 (2026-06-17)
+
+- 新增 `omo-sci uninstall`，支持 `--dry-run` 预览、交互确认、`--yes` 一键卸载
+- 卸载只删除 omo-sci 生成的 9 个 agent、4 个 command、全局配置和 `opencode.json` 中的 `omo-sci` 插件项，默认保留 Dubin 进化记忆
+- 新增 `omo-sci setup` 向导菜单，把安装、配置、状态、诊断、卸载集中到一个入口
+- `omo-sci configure` 无参数时进入 provider/quota 选择向导，降低朋友试用门槛
+- 改善 `omo-sci config` 未安装提示，改为 GitHub beta 安装命令
+- `install` 现在会合并已有 `opencode.json` 的 plugin 数组，不再覆盖其他插件和字段
+- README、安装指南、贡献者说明和 GitHub release 信息同步完善
+
 ## v0.1.2 (2026-06-17)
 
 - 简化安装命令：`omo-sci install` 现在可零参数运行

@@ -4,7 +4,7 @@
 
 omo-sci 的目标是把一个临床研究想法，逐步推进成可执行的研究方案、统计分析计划、论文初稿和投稿材料。它不是单个聊天助手，而是一组分工明确的 agent：Dubin 负责和你对话、拆解任务和把关节奏，其他 specialist agent 负责研究设计、文献检索、统计分析、写作、审稿和投稿准备。
 
-> 当前版本：v0.1.1 beta。适合朋友小范围实测和反馈，不建议直接用于正式伦理提交、临床决策或未复核的论文投稿。
+> 当前版本：v0.1.3 beta。适合朋友小范围实测和反馈，不建议直接用于正式伦理提交、临床决策或未复核的论文投稿。
 
 ## 它能做什么
 
@@ -50,13 +50,23 @@ omo-sci 的目标是把一个临床研究想法，逐步推进成可执行的研
 bunx github:xxxxchaos/oh-my-sci install
 ```
 
-参数说明：
+如果你的朋友不熟悉命令行，安装后直接运行向导：
+
+```bash
+omo-sci setup
+```
+
+向导会把安装、模型配置、状态检查、环境诊断和卸载放在一个菜单里。
+
+安装说明：
 
 - 默认会先用 `opencode-go` 生成一套可运行配置。
 - 如果你要指定自己的模型 provider，可以在安装后运行 `omo-sci configure`。
+- `omo-sci configure` 不带参数时会进入 provider/quota 选择向导。
 - 将来发布到 npm 后，同样可以使用 `bunx omo-sci install`。
 
 ```bash
+omo-sci configure
 omo-sci configure --providers opencode-go,deepseek --quota 500000000
 ```
 
@@ -129,10 +139,14 @@ Dubin 会用中文引导你描述临床问题，例如：
 CLI 也可以直接运行：
 
 ```bash
+omo-sci setup
 omo-sci start
 omo-sci status
+omo-sci config
 omo-sci usage
 omo-sci doctor --models
+omo-sci uninstall --dry-run
+omo-sci uninstall
 ```
 
 ## 典型工作流
@@ -168,11 +182,40 @@ omo-sci configure --providers qwen-bailian --quota 500000000
 
 这样 9 个 agent 都会写入 Qwen 模型，不会默认去调用 DeepSeek 或其他 provider。
 
+## 卸载
+
+在安装 omo-sci 的项目目录里运行：
+
+```bash
+omo-sci uninstall
+```
+
+它会先显示将删除/更新哪些文件，再要求确认。想先预览不删除：
+
+```bash
+omo-sci uninstall --dry-run
+```
+
+一键确认卸载：
+
+```bash
+omo-sci uninstall --yes
+```
+
+默认卸载内容：
+
+- 删除全局配置 `~/.config/opencode/omo-sci.jsonc`
+- 删除当前项目中 omo-sci 生成的 `.opencode/agents/*.md`
+- 删除当前项目中 omo-sci 生成的 `.opencode/commands/*.md`
+- 从当前项目 `opencode.json` 中移除 `plugin: "omo-sci"`
+- 保留 Dubin 进化记忆目录；如需同时删除，加 `--profile`
+
 更多说明见：
 
 - [安装指南](docs/guide/installation.md)
 - [模型配置指南](docs/guide/model-setup.md)
 - [快速开始](docs/guide/quickstart.md)
+- [贡献者](CONTRIBUTORS.md)
 
 ## 当前限制
 
