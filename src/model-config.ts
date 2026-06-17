@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { AgentName, CapabilityCategory, ModelSpec, OmoSciConfig } from './types';
+import { toAuthModelKey } from './router/provider';
 
 export interface AgentModelBinding {
   agent: AgentName;
@@ -84,9 +85,10 @@ export function rewriteAgentFrontmatter(content: string, binding: AgentModelBind
     if (line.startsWith('model: ') || line.startsWith('model_fallback: ')) continue;
     lines.push(line);
     if (line.startsWith('mode: ')) {
-      if (binding.model) lines.push(`model: ${binding.model}`);
+      // 将内部 provider 名转为 OpenCode auth 实际名再写入
+      if (binding.model) lines.push(`model: ${toAuthModelKey(binding.model)}`);
       if (binding.fallback.length > 0) {
-        lines.push(`model_fallback: [${binding.fallback.map(m => `"${m}"`).join(', ')}]`);
+        lines.push(`model_fallback: [${binding.fallback.map(m => `"${toAuthModelKey(m)}"`).join(', ')}]`);
       }
     }
   }

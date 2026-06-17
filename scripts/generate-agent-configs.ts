@@ -37,7 +37,7 @@ interface AgentDef {
 const CATEGORY_DEFAULT_MODEL: Record<CapabilityCategory, string> = {
   'agent-orchestration': 'opencode-go/qwen3.7-max',
   'deep-reasoning': 'deepseek/deepseek-v4-pro',
-  'chinese-writing': 'opencode-go/glm-5.1',
+  'chinese-writing': 'opencode-go/glm-5.2',
   'fast-search': 'opencode-go/minimax-m3',
   'long-context': 'opencode-go/minimax-m3',
   'methodical-review': 'deepseek/deepseek-v4-pro',

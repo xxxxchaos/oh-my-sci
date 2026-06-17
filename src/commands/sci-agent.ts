@@ -10,7 +10,7 @@ import { join } from 'node:path';
 import { loadConfig } from '../config';
 import { extractAgentModels, AGENT_CATEGORIES, applyAgentModelPlan, modelKey } from '../model-config';
 import { AGENT_DISPLAY_NAMES, CATEGORY_LABELS } from '../router/categories';
-import { PROVIDER_REGISTRY } from '../router/provider';
+import { PROVIDER_REGISTRY, PROVIDER_TO_AUTH_NAME, toAuthModelKey } from '../router/provider';
 import type { AgentName, CapabilityCategory, ProviderId } from '../types';
 import { homedir } from 'node:os';
 
@@ -169,15 +169,18 @@ export function setAgentModel(
   const oldModels = extractAgentModels(content);
   const oldStr = oldModels.length > 0 ? oldModels.join(' -> ') : '未配置';
 
+  // 将内部 provider 名转为 OpenCode auth 实际名再写入
+  const finalModel = toAuthModelKey(model);
+
   // 检查 frontmatter 是否包含 model: 行
   let newContent = content;
 
   if (content.match(/^model:\s*.+$/m)) {
     // 替换已有的 model: 行
-    newContent = newContent.replace(/^model:\s*.+$/m, `model: ${model}`);
+    newContent = newContent.replace(/^model:\s*.+$/m, `model: ${finalModel}`);
   } else {
     // 无 model: 行，在 mode: 行后插入
-    newContent = newContent.replace(/^(mode:\s*.+)$/m, `$1\nmodel: ${model}`);
+    newContent = newContent.replace(/^(mode:\s*.+)$/m, `$1\nmodel: ${finalModel}`);
   }
 
   // 清除 model_fallback: 行（单模型切换时不需要 fallback）
@@ -415,6 +418,44 @@ export const MODEL_DESCRIPTIONS: Record<string, {
     strengths: 'Agent 稳定性国产最强，1M 上下文',
     caveats: '闭源，输出偏冗长',
   },
+  // === OpenCode Go 路径 - GLM-5.2（替代 glm-5.1） ===
+  'opencode-go/glm-5.2': {
+    desc: '智谱 GLM 旗舰模型（通过 Go 订阅）',
+    providerDesc: '来源: OpenCode Go 订阅（月费 ¥72，配额内不限量）',
+    strengths: '中文写作最优，MIT 开源，1M 上下文',
+    caveats: '模型响应延迟较高(30-60s)',
+  },
+};
+
+/**
+ * auth provider 名 → 内部 provider 名反向映射
+ */
+const AUTH_TO_PROVIDER_NAME: Record<string, string> = {};
+for (const [internal, auth] of Object.entries(PROVIDER_TO_AUTH_NAME)) {
+  AUTH_TO_PROVIDER_NAME[auth] = internal;
+}
+
+/**
+ * 灵活查找模型描述：先按 auth provider 名查找，失败则转内部名重试
+ */
+function findModelDesc(key: string): typeof MODEL_DESCRIPTIONS[string] | undefined {
+  if (MODEL_DESCRIPTIONS[key]) return MODEL_DESCRIPTIONS[key];
+  const parts = key.split('/');
+  if (parts.length === 2 && AUTH_TO_PROVIDER_NAME[parts[0]]) {
+    const internalKey = `${AUTH_TO_PROVIDER_NAME[parts[0]]}/${parts[1]}`;
+    return MODEL_DESCRIPTIONS[internalKey];
+  }
+  return undefined;
+}
+
+/**
+ * 模型适用性限制：某些模型不适合特定 agent（按 model_id 匹配）
+ */
+const MODEL_AGENT_RESTRICTIONS: Record<string, { forbidden?: AgentName[]; warn?: AgentName[] }> = {
+  'kimi-k2.7-code': {
+    forbidden: ['pubmeder', 'writer', 'polisher'],  // 非编程 agent 禁止
+    warn: ['dubin', 'irber', 'submitter'],           // 编排层不推荐
+  },
 };
 
 // ====================================================================
@@ -475,7 +516,7 @@ export function collectAllModels(): { key: string; provider: string; id: string 
   // 1. 从配置的 fallback_chain 收集
   for (const catConfig of Object.values(config.router.categories)) {
     for (const spec of catConfig.fallback_chain) {
-      const key = modelKey(spec);
+      const key = toAuthModelKey(modelKey(spec));
       if (!seen.has(key)) {
         seen.add(key);
         models.push({ key, provider: spec.provider, id: spec.model_id });
@@ -489,7 +530,7 @@ export function collectAllModels(): { key: string; provider: string; id: string 
     const entry = PROVIDER_REGISTRY[providerId as ProviderId];
     if (!entry) continue;
     for (const spec of entry.models) {
-      const key = modelKey(spec);
+      const key = toAuthModelKey(modelKey(spec));
       if (!seen.has(key)) {
         seen.add(key);
         models.push({ key, provider: spec.provider, id: spec.model_id });
@@ -535,7 +576,16 @@ function formatQuota(quota: number): string {
 function findModelSpecByKey(key: string): { context_window: number; max_output: number; provider: string; model_id: string } | undefined {
   const config = loadConfig();
   const allSpecs = Object.values(config.router.categories).flatMap(c => c.fallback_chain);
-  return allSpecs.find(s => modelKey(s) === key);
+  // 先按内部 key 精确匹配
+  const exact = allSpecs.find(s => modelKey(s) === key);
+  if (exact) return exact;
+  // key 可能是 auth provider 名，转内部名再试
+  const parts = key.split('/');
+  if (parts.length === 2 && AUTH_TO_PROVIDER_NAME[parts[0]]) {
+    const internalKey = `${AUTH_TO_PROVIDER_NAME[parts[0]]}/${parts[1]}`;
+    return allSpecs.find(s => modelKey(s) === internalKey);
+  }
+  return undefined;
 }
 
 // ====================================================================
@@ -701,7 +751,7 @@ export function renderModelPicker(agentName: string, projectDir?: string): strin
         }
 
         // 显示中文描述 + 来源
-        const desc = MODEL_DESCRIPTIONS[m.key];
+        const desc = findModelDesc(m.key);
         if (desc) {
           const descLine = `     ${desc.desc} · ${desc.strengths}`;
           const truncated = visualLen(descLine) > CONTENT_W - 4
@@ -765,7 +815,7 @@ export function renderProviderPool(): string {
           lines.push(boxLine(padVisual(params, CONTENT_W)));
         }
 
-        const desc = MODEL_DESCRIPTIONS[m.key];
+        const desc = findModelDesc(m.key);
         if (desc) {
           lines.push(boxLine(padVisual(`    ${desc.desc} · ${desc.strengths}`, CONTENT_W)));
           if (desc.providerDesc) {
@@ -791,7 +841,12 @@ export function renderProviderPool(): string {
  * renderAllSwitchPicker — 全部 agent 切换模型面板
  */
 export function renderAllSwitchPicker(projectDir?: string): string {
-  const allModels = collectAllModels();
+  // 过滤掉对某个 agent 有 forbidden 限制的模型（全部切换时禁止的模型不应可分配）
+  const allModels = collectAllModels().filter(m => {
+    const modelId = m.id;
+    const restriction = MODEL_AGENT_RESTRICTIONS[modelId];
+    return !restriction?.forbidden || restriction.forbidden.length === 0;
+  });
   const groups = groupModelsByProvider(allModels);
 
   const lines: string[] = [];
@@ -824,13 +879,20 @@ export function renderAllSwitchPicker(projectDir?: string): string {
         }
 
         // 显示中文描述
-        const desc = MODEL_DESCRIPTIONS[m.key];
+        const desc = findModelDesc(m.key);
         if (desc) {
           const descLine = `    ${desc.desc} · ${desc.strengths}`;
           const truncated = visualLen(descLine) > CONTENT_W - 4
             ? descLine.slice(0, CONTENT_W - 8) + '…'
             : descLine;
           lines.push(boxLine(padVisual(truncated, CONTENT_W)));
+        }
+
+        // 模型限制提示
+        const modelId = m.id;
+        const restriction = MODEL_AGENT_RESTRICTIONS[modelId];
+        if (restriction?.warn && restriction.warn.length > 0) {
+          lines.push(boxLine(padVisual('    ⚠ 此模型为编程专用，部分 agent 不推荐使用', CONTENT_W)));
         }
 
         lines.push(boxEmpty());
@@ -946,13 +1008,14 @@ export function collectUniqueModels(): UniqueModelInfo[] {
       }
 
       const configured = isProviderConfigured(providerId);
-      const key = modelKey(spec);
-      const descEntry = MODEL_DESCRIPTIONS[key];
+      const internalKey = modelKey(spec);
+      const authKey = toAuthModelKey(internalKey);
+      const descEntry = MODEL_DESCRIPTIONS[internalKey];
       const providerDesc =
         descEntry?.providerDesc ?? getProviderShortTag(providerId);
 
       seenModels.get(modelId)!.providers.push({
-        key,
+        key: authKey,
         provider: providerId,
         configured,
         providerDesc,
@@ -991,7 +1054,14 @@ export function renderModelFamilyPicker(
   projectDir?: string,
 ): string {
   const isAllSwitch = agentName === 'all';
-  const allModels = collectUniqueModels();
+  const rawModels = collectUniqueModels();
+  // 单 agent 模式：过滤掉 forbidden 模型
+  const allModels = isAllSwitch
+    ? rawModels
+    : rawModels.filter(m => {
+        const restriction = MODEL_AGENT_RESTRICTIONS[m.modelId];
+        return !restriction?.forbidden?.includes(agentName as AgentName);
+      });
   const totalPages = Math.ceil(allModels.length / perPage);
   const pageStart = page * perPage;
   const pageModels = allModels.slice(pageStart, pageStart + perPage);
@@ -1042,10 +1112,15 @@ export function renderModelFamilyPicker(
       const globalIdx = pageStart + i + 1;
       const isCurrent = info.modelId === currentModelId;
 
+      // 模型限制标记
+      const restriction = MODEL_AGENT_RESTRICTIONS[info.modelId];
+      const warnLabel = (!isAllSwitch && restriction?.warn?.includes(agentName as AgentName))
+        ? ' ⚠' : '';
+
       // 标题行
       const star = isCurrent ? ' ⭐' : '';
       const curLabel = isCurrent ? '  ← 当前' : '';
-      const line = `  ${globalIdx}.${star} ${info.modelId}${curLabel}`;
+      const line = `  ${globalIdx}.${star} ${info.modelId}${warnLabel}${curLabel}`;
       lines.push(boxLine(padVisual(line, CONTENT_W)));
 
       // 描述行
@@ -1058,6 +1133,11 @@ export function renderModelFamilyPicker(
           descLine = descLine.slice(0, CONTENT_W - 8) + '…';
         }
         lines.push(boxLine(padVisual(descLine, CONTENT_W)));
+      }
+
+      // 警告行
+      if (!isAllSwitch && restriction?.warn?.includes(agentName as AgentName)) {
+        lines.push(boxLine(padVisual('     ⚠ 此模型为编程专用，不推荐用于此 agent', CONTENT_W)));
       }
 
       // 可用 provider 行

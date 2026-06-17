@@ -63,6 +63,33 @@ permission:
     expect(rewritten).toContain('# Prompt');
   });
 
+  it('rewriteAgentFrontmatter 将内部 provider 名转为 OpenCode auth 名', () => {
+    const content = `---
+description: "test"
+mode: subagent
+model: deepseek/deepseek-v4-pro
+model_fallback: ["opencode-go/qwen3.7-max"]
+permission:
+  read: allow
+---
+
+# Prompt
+`;
+
+    const rewritten = rewriteAgentFrontmatter(content, {
+      agent: 'pubmeder',
+      category: 'fast-search',
+      model: 'zhipu/glm-5.2',
+      fallback: ['minimax/minimax-m3'],
+    });
+
+    expect(rewritten).toContain('model: zhipuai-coding-plan/glm-5.2');
+    expect(rewritten).toContain('model_fallback:');
+    expect(rewritten).toContain('minimax-cn-coding-plan/minimax-m3');
+    expect(rewritten).not.toContain('zhipu/glm-5.2');
+    expect(rewritten).not.toContain('minimax/minimax-m3');
+  });
+
   it('checkInstalledAgentModels 标记配置外模型', () => {
     const tmpDir = mkdtempSync(join(tmpdir(), 'omo-sci-model-check-'));
     try {

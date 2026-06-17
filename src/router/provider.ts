@@ -7,6 +7,32 @@
 
 import type { ProviderId, ModelSpec } from '../types';
 
+/**
+ * omo-sci 内部 ProviderId → OpenCode auth.json 中的实际 provider 名
+ * （用于写入 agent .md，确保 OpenCode 能正确路由）
+ */
+export const PROVIDER_TO_AUTH_NAME: Record<string, string> = {
+  deepseek: 'deepseek',
+  'qwen-bailian': 'qwen-bailian',
+  zhipu: 'zhipuai-coding-plan',
+  kimi: 'kimi-for-coding',
+  minimax: 'minimax-cn-coding-plan',
+  'opencode-go': 'opencode-go',
+  'tencent-hy': 'tencent-hy',
+};
+
+/**
+ * 将内部 provider/model 键转为 OpenCode auth 实际键
+ */
+export function toAuthModelKey(internalKey: string): string {
+  const parts = internalKey.split('/');
+  if (parts.length === 2) {
+    const authProvider = PROVIDER_TO_AUTH_NAME[parts[0]] ?? parts[0];
+    return `${authProvider}/${parts[1]}`;
+  }
+  return internalKey;
+}
+
 export const PROVIDER_REGISTRY: Partial<Record<ProviderId, {
   name: string;
   models: ModelSpec[];
@@ -44,6 +70,7 @@ export const PROVIDER_REGISTRY: Partial<Record<ProviderId, {
       { provider: 'opencode-go', model_id: 'qwen3.7-max', context_window: 1_000_000, max_output: 128_000 },
       { provider: 'opencode-go', model_id: 'deepseek-v4-pro', context_window: 1_000_000, max_output: 128_000 },
       { provider: 'opencode-go', model_id: 'glm-5.1', context_window: 1_000_000, max_output: 128_000 },
+      { provider: 'opencode-go', model_id: 'glm-5.2', context_window: 1_000_000, max_output: 128_000 },
       { provider: 'opencode-go', model_id: 'kimi-k2.7-code', context_window: 256_000, max_output: 128_000 },
       { provider: 'opencode-go', model_id: 'minimax-m3', context_window: 1_000_000, max_output: 128_000 },
       { provider: 'opencode-go', model_id: 'deepseek-v4-flash', context_window: 1_000_000, max_output: 128_000 },
