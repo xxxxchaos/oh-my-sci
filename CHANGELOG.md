@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.1.9 (2026-06-17)
+
+- 修复同一模型多个 provider 的识别问题（如 deepseek-v4-pro 可来自 opencode-go 订阅或 deepseek API）
+- 模型选择面板按来源分组：`★ 订阅` vs `── 按量 API`，每组显示资费说明
+- MODEL_DESCRIPTIONS 扩展至 13 条，覆盖所有 provider 变体（含 providerDesc 字段标注来源与资费）
+- OpenCode Go provider registry 补充 glm-5.1、minimax-m3、deepseek-v4-flash
+
 ## v0.1.8 (2026-06-17)
 
 - 新增 `omo-sci --version` / `-v` / `version` 查看版本号
