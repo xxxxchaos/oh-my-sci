@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.1.4 (2026-06-17)
+
+- 修正 GitHub beta 使用说明：`bunx github:... install` 是临时执行，不会把 `omo-sci` 注册到 shell PATH
+- README、安装指南和 CLI 帮助改为带 tag 的 GitHub beta 命令，例如 `bunx github:xxxxchaos/oh-my-sci#v0.1.4 setup`
+- 安装完成后的下一步提示同时给出 GitHub beta 命令和全局安装后的 `omo-sci` 简写
+- 避免用户在安装后直接运行 `omo-sci setup` 遇到 `command not found`
+
 ## v0.1.3 (2026-06-17)
 
 - 新增 `omo-sci uninstall`，支持 `--dry-run` 预览、交互确认、`--yes` 一键卸载
