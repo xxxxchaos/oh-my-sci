@@ -67,10 +67,10 @@ export function formatStatus(status: StatusInfo): string {
       "╚══════════════════════════════════════════╝",
       "",
       `  运行以下命令安装:`,
-      `    bunx github:xxxxchaos/oh-my-sci#v0.1.4 install`,
+      `    bunx github:xxxxchaos/oh-my-sci install`,
       "",
       `  安装后可运行配置向导:`,
-      `    bunx github:xxxxchaos/oh-my-sci#v0.1.4 configure`,
+      `    bunx github:xxxxchaos/oh-my-sci configure`,
       "",
     ].join("\n");
   }

@@ -1,29 +1,29 @@
-# Contributors
+# 贡献者
 
-omo-sci is currently an early beta project led by:
+omo-sci 目前处于早期 beta 阶段，由以下协作者共同推进：
 
-- Chao Xie — project direction, product design, medical research workflow, real-world testing
-- Codex — implementation review, release preparation, CLI/product iteration support
-- Claude Code — implementation execution and iterative fixes
+- Chao Xie — 项目方向、产品设计、医学科研工作流、真实场景测试
+- Codex — 架构审查、代码审查、CLI/产品体验迭代、发布准备、GitHub 资料维护
+- Claude Code — 代码实现、计划执行、迭代修复
 
-## How to Contribute
+## 如何贡献
 
-Good beta feedback is especially valuable right now:
+当前最需要的是高质量 beta 反馈：
 
-- installation or configuration steps that were confusing
-- model provider choices that failed in practice
-- Dubin interview questions that felt unclear or unnatural
-- research blueprint, SAP, writing, review, or submission outputs that need stronger medical rigor
-- missing documentation for OpenCode, MCP tools, R/statistics, or Chinese clinical research workflows
+- 哪一步安装或配置让你困惑
+- 哪个模型 provider 实际不可用或效果不好
+- Dubin 的访谈问题哪里不清楚、不自然
+- 研究蓝图、SAP、写作、审稿、投稿输出哪里医学严谨性不足
+- OpenCode、MCP、R/统计、中文临床科研流程文档哪里缺失
 
-When reporting an issue, include:
+反馈问题时建议附上：
 
-- operating system
-- Bun version
-- OpenCode version
-- install command used
-- selected providers
-- the command or OpenCode step that failed
-- relevant terminal output, with secrets removed
+- 操作系统
+- Bun 版本
+- OpenCode 版本
+- 使用的安装命令
+- 选择的 providers
+- 失败的命令或 OpenCode 步骤
+- 相关终端输出，请先删除 API key、token、邮箱等敏感信息
 
-This project is not medical advice and does not replace researcher, statistician, IRB, ethics committee, or clinician review.
+本项目不提供医学建议，也不能替代研究者、统计师、IRB/伦理委员会、临床医生或投稿前人工质控。

@@ -45,7 +45,7 @@ omo-sci 支持国内 7 大模型提供商：
 默认安装会先使用 `opencode-go` 生成可运行配置。GitHub beta 阶段安装后可用下面的命令调整模型来源：
 
 ```bash
-bunx github:xxxxchaos/oh-my-sci#v0.1.4 configure --providers qwen-bailian --quota 500000000
+bunx github:xxxxchaos/oh-my-sci configure --providers qwen-bailian --quota 500000000
 ```
 
 如果你只选择一个 provider，例如 `qwen-bailian`，9 个 agent 都会优先使用 `qwen-bailian/qwen3.7-max`，不会再保留默认的 DeepSeek 或 OpenCode Go 模型。

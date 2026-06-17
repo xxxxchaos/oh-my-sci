@@ -1,9 +1,17 @@
 # Changelog
 
+## v0.1.5 (2026-06-17)
+
+- 清理 GitHub beta 命令体验：继续使用简洁的 `bunx github:xxxxchaos/oh-my-sci ...`，不强制带版本 tag
+- 保留关键说明：`bunx github:...` 是临时执行，不会把 `omo-sci` 注册到 shell PATH
+- 安装完成后的下一步提示改为 `bunx github:xxxxchaos/oh-my-sci setup/configure/doctor`
+- 将 GitHub release notes 改为中文表达
+- 将 `CONTRIBUTORS.md` 改为中文，并明确列出 Codex
+
 ## v0.1.4 (2026-06-17)
 
 - 修正 GitHub beta 使用说明：`bunx github:... install` 是临时执行，不会把 `omo-sci` 注册到 shell PATH
-- README、安装指南和 CLI 帮助改为带 tag 的 GitHub beta 命令，例如 `bunx github:xxxxchaos/oh-my-sci#v0.1.4 setup`
+- README、安装指南和 CLI 帮助曾改为带 tag 的 GitHub beta 命令，例如 `bunx github:xxxxchaos/oh-my-sci#v0.1.4 setup`
 - 安装完成后的下一步提示同时给出 GitHub beta 命令和全局安装后的 `omo-sci` 简写
 - 避免用户在安装后直接运行 `omo-sci setup` 遇到 `command not found`
 

@@ -26,7 +26,7 @@ import {
   uninstall,
 } from "../src/uninstall";
 
-const GITHUB_BETA_RUN = "bunx github:xxxxchaos/oh-my-sci#v0.1.4";
+const GITHUB_BETA_RUN = "bunx github:xxxxchaos/oh-my-sci";
 
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
