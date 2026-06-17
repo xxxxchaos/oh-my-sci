@@ -93,13 +93,9 @@ export function getAgentStatus(projectDir?: string): AgentStatus[] {
 
     const [currentModel = '未配置', ...fallbackChain] = models;
 
-    // 判断是否为自定义配置：当前模型不等于该分类的默认模型
-    let isCustom = false;
-    if (categoryKey && currentModel !== '未配置') {
-      const defaultChain = config.router.categories[categoryKey]?.fallback_chain ?? [];
-      const defaultModel = defaultChain.length > 0 ? modelKey(defaultChain[0]) : undefined;
-      isCustom = defaultModel !== undefined && currentModel !== defaultModel;
-    }
+    // 手动切换后 model_fallback 被清除，以此判断是否为自定义
+    const hasFallback = content.match(/^model_fallback:\s*\[.+\]/m) !== null;
+    const isCustom = models.length > 0 && !hasFallback;
 
     statusMap.set(agentName, {
       agentName,
@@ -626,9 +622,14 @@ export function renderMainPanel(projectDir?: string, version?: string): string {
       const s = statuses[i];
       const idx = String(i + 1);
       const marker = s.isCustom ? '✓ ' : '  ';
-      const agentLine = `${marker}${idx}. ${s.displayName.padEnd(20)} ${s.currentModel}`;
-      const innerContent = '  │  ' + padVisual(agentLine, innerW - 6) + '│  ';
-      lines.push(boxLine(innerContent));
+      // 第一行：纯 ASCII agent 名，避免 CJK 对齐问题
+      const agentLine = `${marker}${idx}. ${s.agentName}`;
+      const innerLine1 = '  │  ' + padVisual(agentLine, innerW - 6) + '│  ';
+      lines.push(boxLine(innerLine1));
+      // 第二行：中文描述缩进显示
+      const descLine = `    ${s.displayName} · ${s.categoryLabel} · ${s.currentModel}`;
+      const innerLine2 = '  │  ' + padVisual(descLine, innerW - 6) + '│  ';
+      lines.push(boxLine(innerLine2));
     }
   }
 
