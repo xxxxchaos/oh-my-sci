@@ -51,6 +51,23 @@ git push origin main
 - `docs/guide/` — 用户文档（安装/快速开始/模型配置）
 - `实测记录.md` — 本地实测反馈（不提交到 GitHub）
 
+## Obsidian 知识库同步
+
+**每次迭代结束后，同步更新 Obsidian 笔记：**
+
+- Vault: `/Users/dr.xie/Obsidian/xxxxchao/`
+- 项目笔记目录: `04_Projects/oh-my-sci/`
+
+| 笔记 | 对应项目文件 | 更新时机 |
+|------|------------|---------|
+| [[oh-my-sci 项目主页]] | README.md | 项目定位、技术栈变更时 |
+| [[oh-my-sci 架构设计]] | 设计文档 | 架构变更时 |
+| [[oh-my-sci Agent 团队]] | src/agents/ | agent 角色或提示词变更时 |
+| [[oh-my-sci 开发日志]] | log.md | 每次迭代结束 |
+| [[oh-my-sci 版本记录]] | CHANGELOG.md | 发新版本时 |
+
+**每天收工时提醒用户：** "今天的 oh-my-sci 项目进展是否需要同步到 Obsidian？"
+
 ## Codex 协作
 
 - 每轮 Codex 审查后，审查意见会写入 `handoff.md`
