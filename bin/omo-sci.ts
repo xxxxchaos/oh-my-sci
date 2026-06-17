@@ -16,6 +16,7 @@ import { getStatus, formatStatus } from "../src/status";
 import { formatUsageBar, getUsageInfo } from "../src/commands/sci-usage";
 import { sciStart } from "../src/commands/sci-start";
 import { getProjectStatus, formatProjectStatus } from "../src/commands/sci-status";
+import { getAgentStatus, formatAgentTable, formatProviderList } from "../src/commands/sci-agent";
 import type { ProviderId } from "../src/types";
 import * as path from "node:path";
 import { PROVIDER_WHITELIST } from "../src/router/provider";
@@ -73,6 +74,10 @@ async function main(): Promise<void> {
     }
     case "start": {
       handleStart();
+      break;
+    }
+    case "agent": {
+      handleAgent(args.slice(1));
       break;
     }
     default: {
@@ -265,6 +270,26 @@ function handleUsage(): void {
 
 function handleStart(): void {
   console.log(sciStart());
+}
+
+function handleAgent(args: string[]): void {
+  let projectDir: string | undefined;
+
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === "--project" && i + 1 < args.length) {
+      projectDir = args[++i];
+    }
+  }
+
+  const subcommand = args[0];
+
+  if (subcommand === "providers") {
+    console.log(formatProviderList());
+    return;
+  }
+
+  const statuses = getAgentStatus(projectDir);
+  console.log(formatAgentTable(statuses));
 }
 
 interface InstallArgs {
@@ -497,6 +522,7 @@ omo-sci — 医学科研 AI 智能体团队
   omo-sci status [选项]       查看项目 Passport/Boulder 状态
   omo-sci config              查看安装配置状态
   omo-sci usage               查看用量信息
+  omo-sci agent [providers]   查看/切换当前项目 agent 模型分配
   omo-sci start               启动 Dubin 研究引擎
   omo-sci --help              显示此帮助
 
@@ -528,6 +554,10 @@ doctor 选项:
   --project <dir>             指定项目目录（默认当前目录）
 
 status 选项:
+  --project <dir>             指定项目目录（默认当前目录）
+
+agent 选项:
+  providers                   列出 omo-sci 配置中各分类的可用模型
   --project <dir>             指定项目目录（默认当前目录）
 
 示例:
