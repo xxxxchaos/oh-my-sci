@@ -8,7 +8,12 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { parse } from 'jsonc-parser';
 import type { OmoSciConfig } from './types';
-import { DEFAULT_CONFIG, OMO_SCI_CONFIG_PATH } from './constants';
+import {
+  DEFAULT_CONFIG,
+  OMO_SCI_CONFIG_PATH,
+  OPTIONAL_LITERATURE_MCPS,
+  REQUIRED_LITERATURE_MCPS,
+} from './constants';
 
 // ====================================================================
 // 工具函数
@@ -78,10 +83,38 @@ export function loadConfig(configPath?: string): OmoSciConfig {
       return structuredClone(DEFAULT_CONFIG);
     }
 
-    return deepMerge(structuredClone(DEFAULT_CONFIG), parsed as Partial<OmoSciConfig>);
+    return normalizeLoadedConfig(deepMerge(structuredClone(DEFAULT_CONFIG), parsed as Partial<OmoSciConfig>));
   } catch {
     return structuredClone(DEFAULT_CONFIG);
   }
+}
+
+function unique(items: string[]): string[] {
+  return [...new Set(items)];
+}
+
+function normalizeLoadedConfig(config: OmoSciConfig): OmoSciConfig {
+  const optionalSet = new Set<string>(OPTIONAL_LITERATURE_MCPS);
+  const requiredSet = new Set<string>(REQUIRED_LITERATURE_MCPS);
+  const legacyNonMcpRequired = new Set<string>(['officecli']);
+  const currentRequired = config.environment.mcp_required ?? [];
+  const currentOptional = config.environment.mcp_optional ?? [];
+
+  const userRequired = currentRequired.filter(tool => !optionalSet.has(tool) && !legacyNonMcpRequired.has(tool));
+  const required = unique([...REQUIRED_LITERATURE_MCPS, ...userRequired])
+    .filter(tool => (requiredSet.has(tool) || !optionalSet.has(tool)) && !legacyNonMcpRequired.has(tool));
+  const movedToOptional = currentRequired.filter(tool => optionalSet.has(tool));
+  const optional = unique([...OPTIONAL_LITERATURE_MCPS, ...currentOptional, ...movedToOptional])
+    .filter(tool => !requiredSet.has(tool) && !legacyNonMcpRequired.has(tool));
+
+  return {
+    ...config,
+    environment: {
+      ...config.environment,
+      mcp_required: required,
+      mcp_optional: optional,
+    },
+  };
 }
 
 /**

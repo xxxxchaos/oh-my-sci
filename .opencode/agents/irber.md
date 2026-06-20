@@ -2,7 +2,7 @@
 description: "计划审查员。方案质量审查、FINER评分、伦理风险预审、阻塞项标记。只读。"
 mode: subagent
 model: opencode-go/qwen3.7-plus
-model_fallback: ["deepseek/deepseek-v4-pro", "opencode-go/qwen3.7-max"]
+model_fallback: ["opencode-go/qwen3.7-max", "opencode-go/kimi-k2.6", "opencode-go/glm-5.2"]
 permission:
   read: allow
 ---

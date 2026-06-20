@@ -16,11 +16,13 @@ omo-sci 是一个运行在 [OpenCode](https://opencode.ai) 里的插件。你把
 | [OpenCode](https://opencode.ai) CLI | AI 编码终端，omo-sci 的宿主平台 |
 | Git | 版本管理 |
 | 至少一个可用的模型 provider | 例如 OpenCode Go、DeepSeek API 等 |
+| PubMed MCP 工具 | Pubmeder 的核心文献检索入口，默认工具名为 `unified_search` |
 
 **可选但推荐：**
 
 - R ≥ 4.3（统计分析阶段需要）
-- MCP 文献检索工具（PubMed、CNKI、Cochrane、Exa 等）
+- CNKI MCP（中文文献增强）、Consensus MCP（语义证据发现增强）
+- Cochrane、Exa、Zotero、browser 等其他 MCP 工具（有则纳入，缺失不阻塞核心流程）
 
 ---
 
@@ -68,7 +70,7 @@ opencode .
 | Dubin | 主编排者 | 和你对话、澄清问题、拆解任务、汇总结果 |
 | Archimedes | 研究设计师 | PICO 框架、FINER 评估、研究类型、样本量、偏倚控制 |
 | IRBer | 计划审查员 | 方案质量、伦理风险、可行性预审 |
-| Pubmeder | 文献搜索员 | PubMed/CNKI/Cochrane/Exa/Consensus 多源检索 |
+| Pubmeder | 文献搜索员 | PubMed 核心检索，CNKI/Consensus 等可选增强，证据矩阵与覆盖声明 |
 | SPSSer | 统计分析师 | SAP 撰写、R 分析、诊断检查、敏感性分析 |
 | Writer | 论文写作者 | 中英文初稿、结构化写作、参考文献验证 |
 | Submitter | 投稿协调员 | 期刊匹配、投稿包、格式检查 |
@@ -98,7 +100,7 @@ opencode .
 | `omo-sci agent` | **交互式面板** — 查看/切换 9 个 agent 的模型 |
 | `omo-sci doctor` | 环境诊断 |
 | `omo-sci doctor --models` | 检查 agent 模型链是否一致 |
-| `omo-sci configure --providers opencode-go,deepseek --quota 500000000` | 配置模型 provider |
+| `omo-sci configure --providers qwen-bailian,zhipu,kimi,minimax,deepseek --quota 500000000` | 配置模型 provider |
 | `omo-sci status` | 查看项目状态 |
 | `omo-sci start` | 启动 Dubin 研究引擎 |
 | `omo-sci uninstall` | 卸载（先预览再确认） |
@@ -131,19 +133,19 @@ opencode agent list | grep -E "dubin|archimedes|irber|pubmeder|spsser|writer|sub
 omo-sci agent
 
 # 或直接命令行切换
-omo-sci agent set dubin deepseek/deepseek-v4-pro    # 单个切换
-omo-sci agent set all opencode-go/qwen3.7-max        # 全部切换
+omo-sci agent set dubin qwen-bailian/qwen3.7-plus   # 单个切换
+omo-sci agent set all opencode-go/qwen3.7-plus       # 全部切换
 omo-sci agent reset                                   # 恢复默认
 ```
 
 ### 配置模型 provider
 
 ```bash
-# 指定你实际拥有的 provider
-omo-sci configure --providers opencode-go,deepseek --quota 500000000
+# 指定你实际拥有的 provider；建议把 opencode-go 留作兜底
+omo-sci configure --providers qwen-bailian,zhipu,kimi,minimax,deepseek --quota 500000000
 ```
 
-omo-sci 会自动从 OpenCode 已登录的 provider 中读取可用模型，所以即使只配了 `opencode-go`，面板里也能看到 DeepSeek、Kimi、智谱等直接 API 模型（标注为"需先配置"）。
+omo-sci 会优先使用模型自家 provider；如果对应 provider 未配置，则自动回退到 `opencode-go`。
 
 ### 完整研究流程
 

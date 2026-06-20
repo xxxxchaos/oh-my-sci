@@ -26,7 +26,7 @@ export PATH="$HOME/.bun/bin:$PATH"
 omo-sci install
 ```
 
-安装时会先使用默认 provider `opencode-go` 生成一套可运行配置，并输出“模型分配计划”表，明确每个 agent 实际写入 `.opencode/agents/*.md` 的 `model` 和 `model_fallback`。安装完成后，OpenCode 会自动加载 omo-sci 插件和 9 个医学科研 agent。
+安装时会先使用 `opencode-go` 作为兜底生成一套可运行配置，并输出“模型分配计划”表，明确每个 agent 实际写入 `.opencode/agents/*.md` 的 `model` 和 `model_fallback`。安装完成后，建议先运行 `omo-sci configure` 选择你自己的模型 provider，再运行 `omo-sci agent` 检查各 agent 分配。
 
 将来发布到 npm 后，也可以使用 `bunx omo-sci install`。
 
@@ -50,7 +50,7 @@ bunx github:xxxxchaos/oh-my-sci install
 
 ```bash
 omo-sci configure
-omo-sci configure --providers opencode-go,deepseek --quota 500000000
+omo-sci configure --providers qwen-bailian,zhipu,kimi,minimax,deepseek --quota 500000000
 ```
 
 ## 验证安装
@@ -70,7 +70,7 @@ omo-sci doctor --models
 - OpenCode 配置
 - omo-sci 配置文件完整性
 - 当前项目 agent 模型链与 omo-sci 配置是否一致（`--models`）
-- 必需 MCP 工具就绪状态
+- MCP 工具声明：PubMed MCP（`unified_search`）为必选；CNKI、Consensus、Cochrane、Exa 等为可选增强源
 
 ## 模型配置
 
@@ -116,7 +116,7 @@ omo-sci uninstall --yes
 A: 确保 opencode.json 中包含 `"plugin": ["omo-sci"]`。重启 OpenCode 会话。
 
 **Q: MCP 工具找不到？**
-A: 运行 `omo-sci doctor` 检查环境。确保已配置 PubMed Search MCP 等必要工具。
+A: 运行 `omo-sci doctor` 检查环境。PubMed MCP（默认工具名 `unified_search`）是 Pubmeder 的核心依赖；CNKI 和 Consensus 是可选增强源，没装也可以继续用 PubMed 核心检索。
 
 **Q: 配置修改后不生效？**
 A: omo-sci 在启动时读取配置。重启 OpenCode 会话或重新加载插件。

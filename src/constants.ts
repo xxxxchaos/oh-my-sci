@@ -9,6 +9,19 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 import type { OmoSciConfig } from './types';
 
+/** 文献检索核心 MCP：Pubmeder 没有它就只能输出检索策略，不能完成真实 PubMed 检索 */
+export const REQUIRED_LITERATURE_MCPS = ['unified_search'] as const;
+
+/** 文献检索增强 MCP：存在时纳入搜索，缺失时不阻塞 Pubmeder */
+export const OPTIONAL_LITERATURE_MCPS = [
+  'search_cnki',
+  'Consensus__search',
+  'search_cochrane_reviews',
+  'web_search_exa',
+  'zotero_search_items',
+  'browser_navigate',
+] as const;
+
 /** ~/.config/opencode */
 export const OPENCODE_CONFIG_DIR = join(homedir(), '.config', 'opencode');
 
@@ -38,15 +51,8 @@ export const DEFAULT_CONFIG: OmoSciConfig = {
     quota_reset_date: new Date().toISOString().slice(0, 7) + '-01',
   },
   environment: {
-    mcp_required: [
-      'unified_search',
-      'search_cnki',
-      'search_cochrane_reviews',
-      'web_search_exa',
-      'Consensus__search',
-      'officecli',
-    ],
-    mcp_optional: ['zotero_search_items', 'browser_navigate'],
+    mcp_required: [...REQUIRED_LITERATURE_MCPS],
+    mcp_optional: [...OPTIONAL_LITERATURE_MCPS],
     r_packages: [
       'tableone',
       'gtsummary',

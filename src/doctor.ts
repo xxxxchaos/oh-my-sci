@@ -49,6 +49,9 @@ export async function runDoctor(options: DoctorOptions = {}): Promise<DoctorRepo
   // 6. R 可用性检查（可选）
   checks.push(await checkR());
 
+  // 7. 文献 MCP 配置声明（真实可用性需 OpenCode runtime 中验证）
+  checks.push(...checkMcpDeclarations());
+
   if (options.includeModelChecks) {
     checks.push(...checkAgentModels(options.projectDir ?? process.cwd()));
   }
@@ -97,6 +100,37 @@ function checkAgentModels(projectDir: string): HealthCheck[] {
       name: '模型配置',
       status: 'warn',
       message: `无法检查 agent 模型配置: ${err instanceof Error ? err.message : String(err)}`,
+    }];
+  }
+}
+
+function checkMcpDeclarations(): HealthCheck[] {
+  try {
+    const config = loadConfig();
+    const checks: HealthCheck[] = [];
+
+    for (const tool of config.environment.mcp_required) {
+      checks.push({
+        name: `MCP 必选/${tool}`,
+        status: 'ok',
+        message: 'Pubmeder 核心检索依赖已声明。真实可用性由 OpenCode MCP runtime 决定；缺失时 Pubmeder 会输出可人工复制的检索策略。',
+      });
+    }
+
+    for (const tool of config.environment.mcp_optional ?? []) {
+      checks.push({
+        name: `MCP 可选/${tool}`,
+        status: 'ok',
+        message: '可选增强源；存在时 Pubmeder 会纳入，缺失不影响 PubMed 核心流程。',
+      });
+    }
+
+    return checks;
+  } catch (err) {
+    return [{
+      name: 'MCP 配置',
+      status: 'warn',
+      message: `无法读取 MCP 配置声明: ${err instanceof Error ? err.message : String(err)}`,
     }];
   }
 }

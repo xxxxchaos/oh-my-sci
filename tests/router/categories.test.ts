@@ -2,7 +2,7 @@
  * categories.ts 测试
  */
 import { describe, it, expect } from 'bun:test';
-import { CATEGORY_LABELS, AGENT_DISPLAY_NAMES, DEFAULT_FALLBACK_ORDERS, DEFAULT_MODEL_DENYLIST } from '../../src/router/categories';
+import { AGENT_FALLBACK_ORDERS, CATEGORY_LABELS, AGENT_DISPLAY_NAMES, DEFAULT_FALLBACK_ORDERS, DEFAULT_MODEL_DENYLIST } from '../../src/router/categories';
 import type { CapabilityCategory, AgentName } from '../../src/types';
 
 describe('categories', () => {
@@ -54,11 +54,21 @@ describe('categories', () => {
 
     it('默认推荐矩阵符合 v0.1.17 医学科研策略', () => {
       expect(DEFAULT_FALLBACK_ORDERS['agent-orchestration'][0]).toBe('qwen3.7-plus');
+      expect(DEFAULT_FALLBACK_ORDERS['deep-reasoning'][0]).toBe('qwen3.7-max');
       expect(DEFAULT_FALLBACK_ORDERS['fast-search'][0]).toBe('minimax-m3');
       expect(DEFAULT_FALLBACK_ORDERS['fast-search']).toContain('kimi-k2.6');
       expect(DEFAULT_FALLBACK_ORDERS['fast-search']).not.toContain('kimi-k2.7-code');
       expect(DEFAULT_FALLBACK_ORDERS['chinese-writing']).not.toContain('kimi-k2.7-code');
       expect(DEFAULT_MODEL_DENYLIST['fast-search']).toContain('kimi-k2.7-code');
+    });
+
+    it('agent 级推荐矩阵锁定 moonshot 调研结论', () => {
+      expect(AGENT_FALLBACK_ORDERS.dubin[0]).toBe('qwen3.7-plus');
+      expect(AGENT_FALLBACK_ORDERS.archimedes[0]).toBe('qwen3.7-max');
+      expect(AGENT_FALLBACK_ORDERS.pubmeder.slice(0, 2)).toEqual(['minimax-m3', 'kimi-k2.6']);
+      expect(AGENT_FALLBACK_ORDERS.spsser[0]).toBe('deepseek-v4-pro');
+      expect(AGENT_FALLBACK_ORDERS.ebmer[0]).toBe('glm-5.2');
+      expect(AGENT_FALLBACK_ORDERS.polisher[0]).toBe('glm-5.2');
     });
   });
 });

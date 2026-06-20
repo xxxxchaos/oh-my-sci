@@ -61,8 +61,11 @@ export const PROVIDER_REGISTRY: Partial<Record<ProviderId, {
     ],
   },
   'qwen-bailian': {
-    name: '阿里百炼 (Qwen 3.7-Max)',
-    models: [{ provider: 'qwen-bailian', model_id: 'qwen3.7-max', context_window: 1_000_000, max_output: 128_000 }],
+    name: '阿里百炼 (Qwen 3.7)',
+    models: [
+      { provider: 'qwen-bailian', model_id: 'qwen3.7-plus', context_window: 1_000_000, max_output: 128_000 },
+      { provider: 'qwen-bailian', model_id: 'qwen3.7-max', context_window: 1_000_000, max_output: 128_000 },
+    ],
   },
   'zhipu': {
     name: '智谱开放平台 (GLM-5.2)',
@@ -97,6 +100,19 @@ export const PROVIDER_REGISTRY: Partial<Record<ProviderId, {
       { provider: 'opencode-go', model_id: 'deepseek-v4-flash', context_window: 1_000_000, max_output: 128_000 },
     ],
   },
+};
+
+export const MODEL_HOME_PROVIDER: Record<string, ProviderId> = {
+  'qwen3.7-plus': 'qwen-bailian',
+  'qwen3.7-max': 'qwen-bailian',
+  'deepseek-v4-pro': 'deepseek',
+  'deepseek-v4-flash': 'deepseek',
+  'glm-5.2': 'zhipu',
+  'glm-5.1': 'zhipu',
+  'kimi-k2.6': 'kimi',
+  'kimi-k2.7-code': 'kimi',
+  'minimax-m3': 'minimax',
+  'hy3': 'tencent-hy',
 };
 
 export function getAvailableModels(providerIds: ProviderId[]): ModelSpec[] {

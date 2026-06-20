@@ -47,6 +47,18 @@ describe("runDoctor", () => {
     expect(configCheck).toBeDefined();
     expect(["ok", "warn"]).toContain(configCheck!.status);
   });
+
+  it("声明 PubMed 为必选 MCP，CNKI 和 Consensus 为可选 MCP", async () => {
+    const report = await runDoctor();
+    const pubmedCheck = report.checks.find((c) => c.name === "MCP 必选/unified_search");
+    expect(pubmedCheck).toBeDefined();
+    expect(pubmedCheck!.status).toBe("ok");
+    expect(pubmedCheck!.message).toContain("真实可用性由 OpenCode MCP runtime 决定");
+    expect(report.checks.find((c) => c.name === "MCP 可选/search_cnki")).toBeDefined();
+    expect(report.checks.find((c) => c.name === "MCP 可选/Consensus__search")).toBeDefined();
+    expect(report.checks.find((c) => c.name === "MCP 必选/search_cnki")).toBeUndefined();
+    expect(report.checks.find((c) => c.name === "MCP 必选/Consensus__search")).toBeUndefined();
+  });
 });
 
 describe("formatDoctorReport", () => {

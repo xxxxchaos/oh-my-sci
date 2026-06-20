@@ -51,8 +51,8 @@ describe("Phase 1 Integration", () => {
       // resolveModel 返回 fallback_chain 的第一个模型
       const model = resolveModel("agent-orchestration", config.router);
       expect(model).not.toBeNull();
-      expect(model!.provider).toBe("deepseek");
-      expect(model!.model_id).toBe("deepseek-v4-pro");
+      expect(model!.provider).toBe("qwen-bailian");
+      expect(model!.model_id).toBe("qwen3.7-plus");
     });
 
     it("resolveFallbackChain 返回完整 fallback 链", () => {
@@ -71,7 +71,7 @@ describe("Phase 1 Integration", () => {
       const chainA = resolveFallbackChain("deep-reasoning", config.router);
       const chainB = resolveFallbackChain("fast-search", config.router);
 
-      expect(chainA[0]?.model_id).toBe("deepseek-v4-pro");
+      expect(chainA[0]?.model_id).toBe("qwen3.7-max");
       expect(chainB[0]?.model_id).toBe("minimax-m3");
     });
 

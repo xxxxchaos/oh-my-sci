@@ -2,6 +2,7 @@ import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { AgentName, CapabilityCategory, ModelSpec, OmoSciConfig } from './types';
 import { canonicalModelKey, toAuthModelKey } from './router/provider';
+import { AGENT_FALLBACK_ORDERS } from './router/categories';
 
 export interface AgentModelBinding {
   agent: AgentName;
@@ -34,7 +35,17 @@ export function modelKey(model: ModelSpec): string {
 
 export function buildAgentModelPlan(config: OmoSciConfig): AgentModelBinding[] {
   return Object.entries(AGENT_CATEGORIES).map(([agent, category]) => {
-    const chain = config.router.categories[category]?.fallback_chain ?? [];
+    const configuredChain = config.router.categories[category]?.fallback_chain ?? [];
+    const order = AGENT_FALLBACK_ORDERS[agent as AgentName] ?? [];
+    const chain = order.length > 0
+      ? [...configuredChain].sort((a, b) => {
+          const aIndex = order.indexOf(a.model_id);
+          const bIndex = order.indexOf(b.model_id);
+          const aRank = aIndex === -1 ? Number.MAX_SAFE_INTEGER : aIndex;
+          const bRank = bIndex === -1 ? Number.MAX_SAFE_INTEGER : bIndex;
+          return aRank - bRank;
+        })
+      : configuredChain;
     const [primary, ...fallbacks] = chain.map(modelKey);
     return {
       agent: agent as AgentName,

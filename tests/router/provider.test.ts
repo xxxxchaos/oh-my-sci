@@ -17,8 +17,10 @@ describe('provider', () => {
       expect(PROVIDER_REGISTRY['deepseek']!.models.length).toBe(2);
     });
 
-    it('qwen-bailian 包含 1 个模型', () => {
-      expect(PROVIDER_REGISTRY['qwen-bailian']!.models.length).toBe(1);
+    it('qwen-bailian 包含 Plus 和 Max', () => {
+      const modelIds = PROVIDER_REGISTRY['qwen-bailian']!.models.map(model => model.model_id);
+      expect(modelIds).toContain('qwen3.7-plus');
+      expect(modelIds).toContain('qwen3.7-max');
     });
 
     it('Kimi 注册 K2.6 和 K2.7 Code', () => {
@@ -82,7 +84,7 @@ describe('provider', () => {
     it('合并多个 provider 的模型', () => {
       const ids: ProviderId[] = ['deepseek', 'qwen-bailian'];
       const models = getAvailableModels(ids);
-      expect(models.length).toBe(3); // 2 + 1
+      expect(models.length).toBe(4); // 2 + 2
     });
 
     it('在空 provider 列表时返回空数组', () => {

@@ -421,8 +421,8 @@ export const MODEL_DESCRIPTIONS: Record<string, {
   'zhipu/glm-5.2': {
     desc: '智谱 GLM-5.2（官方 API）',
     providerDesc: '来源: 智谱开放平台（按量计费）',
-    strengths: '中文写作最优，MIT 开源，1M 上下文',
-    caveats: '响应延迟较高(30-60s)',
+    strengths: '中文规范文本、审稿和结构化输出突出，1M 上下文，适合 EBMer/Polisher',
+    caveats: '响应延迟可能较高，长任务注意节奏',
   },
   'minimax/minimax-m3': {
     desc: 'MiniMax M3（官方 API）',
@@ -436,12 +436,18 @@ export const MODEL_DESCRIPTIONS: Record<string, {
     strengths: 'Agent 稳定性国产最强，1M 上下文',
     caveats: '闭源，输出偏冗长',
   },
+  'qwen-bailian/qwen3.7-plus': {
+    desc: '阿里千问 Plus（百炼 API）',
+    providerDesc: '来源: 阿里百炼（按量计费，约为 Max 的 1/6）',
+    strengths: '长程工具调用稳定，1M 上下文，适合默认主控和写作',
+    caveats: '极致推理略弱于 Max',
+  },
   // === OpenCode Go 路径 - GLM-5.2（替代 glm-5.1） ===
   'opencode-go/glm-5.2': {
     desc: '智谱 GLM 旗舰模型（通过 Go 订阅）',
     providerDesc: '来源: OpenCode Go 订阅（月费 ¥72，配额内不限量）',
-    strengths: '中文写作最优，MIT 开源，1M 上下文',
-    caveats: '模型响应延迟较高(30-60s)',
+    strengths: '中文规范文本、审稿和结构化输出突出，1M 上下文，适合 EBMer/Polisher',
+    caveats: '响应延迟可能较高，长任务注意节奏',
   },
 };
 

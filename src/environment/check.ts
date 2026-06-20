@@ -11,10 +11,10 @@ export async function runAllChecks(config?: OmoSciConfig, options: EnvCheckOptio
 
   // MCP
   for (const tool of cfg.environment.mcp_required) {
-    results.push({ category: 'MCP', name: tool, status: 'unknown', message: '需 OpenCode host runtime 检查' });
+    results.push({ category: 'MCP', name: tool, status: 'unknown', message: '必选，需 OpenCode host runtime 检查' });
   }
   for (const tool of cfg.environment.mcp_optional ?? []) {
-    results.push({ category: 'MCP', name: tool, status: 'unknown', message: '可选，需 OpenCode host runtime 检查' });
+    results.push({ category: 'MCP', name: tool, status: 'unknown', message: '可选增强，缺失不阻塞核心流程；需 OpenCode host runtime 检查' });
   }
 
   // R (仅 stage 2+)

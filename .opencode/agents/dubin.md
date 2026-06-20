@@ -2,7 +2,7 @@
 description: "医学研究主编排者。引导结构化访谈，拆解委派任务，调和审稿冲突，确保研究全流程质量。"
 mode: primary
 model: opencode-go/qwen3.7-plus
-model_fallback: ["deepseek/deepseek-v4-pro", "opencode-go/qwen3.7-max"]
+model_fallback: ["opencode-go/qwen3.7-max", "opencode-go/kimi-k2.6", "opencode-go/glm-5.2"]
 permission:
   read: allow
   edit: ask
@@ -114,7 +114,7 @@ color: primary
 
 ### 阶段 1：研究设计冲刺
 1a：委派 Archimedes 生成研究蓝图初稿。
-1b：委派 Pubmeder 并行深度搜索（PubMed / CNKI / Cochrane / Exa 四个方向同时搜）。
+1b：委派 Pubmeder 深度搜索（PubMed 为核心必选源；CNKI / Consensus / Cochrane / Exa 等按工具可用性作为增强源）。
 1c：Archimedes 整合证据 → 最终研究蓝图 → IRBer 审查计划质量。
 - 产出：Study_Blueprint.md + Literature_Matrix.md + Search_Plan.md
 - 闸门：FINER + 6 项质量门控（文献覆盖度、时效性、无编造引用等）
@@ -282,17 +282,19 @@ Wisdom learnings 归档。
 1. 验证和补充研究蓝图中的文献依据
 2. 生成最终的 Literature_Matrix.md
 
-并行 spawn 四个搜索方向：
-- PubMed：英文文献 + 系统评价/Meta 分析优先
-- CNKI：中文文献（使用 CNKI MCP 工具，注意 CNKI 有反爬限制，搜索间隔 2-3 秒）
-- Cochrane：系统评价和临床试验注册
-- Exa（或 Consensus）：补充搜索学术来源
+按可用性 spawn 搜索方向：
+- PubMed：核心必选源，英文文献 + 系统评价/Meta 分析优先
+- CNKI：可选中文文献源；如果 CNKI MCP 不可用，让 Pubmeder 输出中文检索式和未覆盖声明，不阻塞主流程
+- Consensus：可选语义发现源；适合快速发现代表性研究、近年综述和争议点，但不能替代传统系统检索数据库
+- Cochrane / Exa：可选增强源；有工具就用，没有就记录限制
 
 注意：
-- 这四个搜索是并行的，不要等一个完成再开下一个
+- 可用的搜索源尽量并行，不要等一个完成再开下一个
 - 每个搜索方向独立产出，Pubmeder 负责整合
-- 如果某个搜索源 unavailable（如 CNKI 被反爬墙），用降级策略：CNKI MCP → browser-use → 通用搜索
+- 如果 PubMed MCP 不可用，必须停下来提示这是核心依赖缺失，只输出可人工复制的 PubMed 检索式
+- 如果可选搜索源 unavailable（如 CNKI、Consensus），记录为可选源未覆盖，不要把整个文献任务判为失败
 - 搜索结果中每条证据必须有可验证 ID
+- Pubmeder 的 Literature_Matrix.md 必须写明覆盖级别：核心覆盖 / 增强覆盖 / 系统综述候选覆盖
 
 **1.3 整合研究蓝图**
 等 Archimedes 和 Pubmeder 都完成之后，让 Archimedes 读 Pubmeder 的搜索结果，更新研究蓝图。然后委派 IRBer 审查。
@@ -486,7 +488,7 @@ Submitter 用 Pandoc + OfficeCLI 做格式转换。
 **Pubmeder（文献搜索员）**
 - 何时用：任何需要搜索文献的时候
 - 用在哪：阶段 0（后台初搜）、阶段 1b（深度搜索）
-- 典型委派："Pubmeder，请搜索以下主题……。覆盖 PubMed / CNKI / Cochrane / Exa。要求：近 5 年、英文+中文、系统评价优先。"
+- 典型委派："Pubmeder，请搜索以下主题……。PubMed 为必选核心源；如果 CNKI / Consensus / Cochrane / Exa 可用，请作为增强源纳入。要求：近 5 年、英文+中文、系统评价优先，并声明数据库覆盖级别。"
 - 注意：Pubmeder 的输出中每条证据必须有可验证 ID
 
 **SPSSer（统计分析师）**

@@ -7,9 +7,14 @@
 
 import * as path from "node:path";
 import * as fsSync from "node:fs";
-import { OMO_SCI_CONFIG_PATH, OPENCODE_CONFIG_DIR } from "./constants";
+import {
+  OMO_SCI_CONFIG_PATH,
+  OPENCODE_CONFIG_DIR,
+  OPTIONAL_LITERATURE_MCPS,
+  REQUIRED_LITERATURE_MCPS,
+} from "./constants";
 import type { OmoSciConfig, ProviderId, CapabilityCategory } from "./types";
-import { PROVIDER_WHITELIST, getAvailableModels } from "./router/provider";
+import { MODEL_HOME_PROVIDER, PROVIDER_WHITELIST, getAvailableModels } from "./router/provider";
 import { DEFAULT_FALLBACK_ORDERS, DEFAULT_MODEL_DENYLIST } from "./router/categories";
 import {
   applyAgentModelPlan,
@@ -35,10 +40,18 @@ function orderModelsForCategory(
     const aRank = aIndex === -1 ? Number.MAX_SAFE_INTEGER : aIndex;
     const bRank = bIndex === -1 ? Number.MAX_SAFE_INTEGER : bIndex;
     if (aRank !== bRank) return aRank - bRank;
-    if (a.provider === 'opencode-go' && b.provider !== 'opencode-go') return -1;
-    if (a.provider !== 'opencode-go' && b.provider === 'opencode-go') return 1;
-    return 0;
+    return providerRankForModel(a.model_id, a.provider) - providerRankForModel(b.model_id, b.provider);
   });
+}
+
+function providerRankForModel(modelId: string, provider: ProviderId): number {
+  if (MODEL_HOME_PROVIDER[modelId] === provider) return 0;
+  if (provider !== 'opencode-go') return 1;
+  return 2;
+}
+
+function withOpencodeGoFallback(providers: ProviderId[]): ProviderId[] {
+  return [...new Set([...providers, 'opencode-go' as ProviderId])];
 }
 
 // ====== 类型定义 ======
@@ -92,7 +105,7 @@ export function generateConfig(
 
   // ====== 构建配置 ======
 
-  const availableModels = getAvailableModels(providers);
+  const availableModels = getAvailableModels(withOpencodeGoFallback(providers));
 
   const catIds: CapabilityCategory[] = [
     'agent-orchestration', 'deep-reasoning', 'chinese-writing',
@@ -119,15 +132,8 @@ export function generateConfig(
       quota_reset_date: new Date().toISOString().slice(0, 7) + '-01',
     },
     environment: {
-      mcp_required: [
-        'unified_search',
-        'search_cnki',
-        'search_cochrane_reviews',
-        'web_search_exa',
-        'Consensus__search',
-        'officecli',
-      ],
-      mcp_optional: ['zotero_search_items', 'browser_navigate'],
+      mcp_required: [...REQUIRED_LITERATURE_MCPS],
+      mcp_optional: [...OPTIONAL_LITERATURE_MCPS],
       r_packages: [
         'tableone', 'gtsummary', 'finalfit', 'survival', 'coxme',
         'rms', 'MatchIt', 'WeightIt', 'mice', 'flowchart', 'ggplot2', 'patchwork',
@@ -283,7 +289,7 @@ function generateConfigJsonc(config: OmoSciConfig): string {
     { key: '"router"', comment: "分类路由配置——各能力分类的模型 fallback 链" },
     { key: '"safety"', comment: "安全机制配置——熔断器和循环检测" },
     { key: '"usage"', comment: "用量监控——月配额和当前使用量" },
-    { key: '"environment"', comment: "环境就绪检查——必需 MCP 工具和软件" },
+    { key: '"environment"', comment: "环境就绪检查——PubMed MCP 为必需；CNKI / Consensus 等为可选增强" },
     {
       key: '"plugin"',
       comment:

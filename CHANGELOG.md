@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.1.18 (2026-06-20)
+
+- 根据 `模型调研-moonshot.pdf` 更新默认模型矩阵：Qwen 3.7 Plus/Max 负责长程编排和研究设计，MiniMax M3/Kimi K2.6 负责文献检索，DeepSeek V4 Pro 负责统计代码，GLM-5.2 负责审稿和中文规范文本
+- 新增 agent 级模型推荐矩阵，不再只按粗粒度能力分类写入 agent frontmatter
+- provider 选择改为模型自家 provider 优先，`opencode-go` 自动作为兜底，减少 OpenCode Go 额度消耗
+- `qwen-bailian` 注册 `qwen3.7-plus`，并补充面板说明
+- 安装完成提示改为先运行 `omo-sci configure` 选择 provider，再运行 `omo-sci agent` 检查各 agent 模型
+- Pubmeder 文献源分层：`unified_search` / PubMed 作为必选 MCP；CNKI、Consensus、Cochrane、Exa、Zotero、browser 作为可选增强源
+- 安装配置和默认配置不再把 CNKI / Consensus 当作必需依赖，降低朋友初次安装门槛
+- `doctor` 增加 MCP 依赖声明：明确 PubMed 是核心依赖，可选工具缺失不阻塞核心流程
+- 修正 `doctor --models` 对 `MCP 必选/unified_search` 的误导性警告：必选 MCP 已声明时显示为通过，仅在文案中提醒真实可用性由 OpenCode runtime 决定
+- Pubmeder / Dubin 提示词增加数据库覆盖级别声明，避免把 Consensus 语义检索误写成系统综述级传统数据库检索
+- README 和安装指南同步更新 PubMed 必选、CNKI/Consensus 可选的安装预期
+
 ## v0.1.17 (2026-06-18)
 
 - 修复 v0.1.16 推荐模型只停留在文案的问题：`generateConfig()` 现在按能力分类推荐矩阵排序 fallback chain

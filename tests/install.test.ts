@@ -40,12 +40,19 @@ describe("generateConfig", () => {
     // fast-search 并发为 4，其他为 2
     expect(config.router.categories["fast-search"].concurrency_limit).toBe(4);
     expect(config.router.categories["deep-reasoning"].concurrency_limit).toBe(2);
+
+    expect(config.environment.mcp_required).toEqual(["unified_search"]);
+    expect(config.environment.mcp_optional).toContain("search_cnki");
+    expect(config.environment.mcp_optional).toContain("Consensus__search");
+    expect(config.environment.mcp_required).not.toContain("search_cnki");
+    expect(config.environment.mcp_required).not.toContain("Consensus__search");
   });
 
-  it("单 provider 生成正确", () => {
+  it("单 provider 生成自家模型并自动加入 opencode-go 兜底", () => {
     const config = generateConfig(["minimax"], 200000000, true);
     const allModels = Object.values(config.router.categories).flatMap(c => c.fallback_chain);
-    expect(allModels.every(m => m.provider === "minimax")).toBe(true);
+    expect(allModels.some(m => m.provider === "minimax")).toBe(true);
+    expect(allModels.some(m => m.provider === "opencode-go")).toBe(true);
     expect(config.usage.token_quota).toBe(200000000);
   });
 
@@ -73,6 +80,8 @@ describe("generateConfig", () => {
     expect(plan).toContain("模型分配计划");
     expect(plan).toContain("archimedes");
     expect(plan).toContain("qwen-bailian/qwen3.7-max");
+    expect(plan).toContain("dubin");
+    expect(plan).toContain("qwen-bailian/qwen3.7-plus");
     expect(plan).not.toContain("deepseek/deepseek-v4-pro");
   });
 
@@ -85,10 +94,31 @@ describe("generateConfig", () => {
     const config = generateConfig(["opencode-go"], 500000000, true);
 
     expect(config.router.categories["agent-orchestration"].fallback_chain[0]?.model_id).toBe("qwen3.7-plus");
+    expect(config.router.categories["deep-reasoning"].fallback_chain[0]?.model_id).toBe("qwen3.7-max");
+    expect(config.router.categories["methodical-review"].fallback_chain[0]?.model_id).toBe("glm-5.2");
     expect(config.router.categories["fast-search"].fallback_chain[0]?.model_id).toBe("minimax-m3");
     expect(config.router.categories["fast-search"].fallback_chain.map(model => model.model_id)).toContain("kimi-k2.6");
     expect(config.router.categories["fast-search"].fallback_chain.map(model => model.model_id)).not.toContain("kimi-k2.7-code");
     expect(config.router.categories["chinese-writing"].fallback_chain.map(model => model.model_id)).not.toContain("kimi-k2.7-code");
+  });
+
+  it("多 provider 时优先模型自家 provider，opencode-go 作为兜底", () => {
+    const config = generateConfig(["qwen-bailian", "zhipu", "minimax", "kimi", "deepseek"], 500000000, true);
+
+    expect(config.router.categories["agent-orchestration"].fallback_chain[0]).toMatchObject({
+      provider: "qwen-bailian",
+      model_id: "qwen3.7-plus",
+    });
+    expect(config.router.categories["fast-search"].fallback_chain[0]).toMatchObject({
+      provider: "minimax",
+      model_id: "minimax-m3",
+    });
+    expect(config.router.categories["methodical-review"].fallback_chain[0]).toMatchObject({
+      provider: "zhipu",
+      model_id: "glm-5.2",
+    });
+    expect(config.router.categories["fast-search"].fallback_chain.map(model => `${model.provider}/${model.model_id}`))
+      .toContain("opencode-go/minimax-m3");
   });
 });
 
@@ -259,6 +289,9 @@ describe("install", () => {
     expect(pubmeder).toContain(`model: ${DEFAULT_INSTALL_PROVIDERS[0]}/minimax-m3`);
     expect(pubmeder).toContain(`model_fallback: ["${DEFAULT_INSTALL_PROVIDERS[0]}/kimi-k2.6"`);
     expect(pubmeder).not.toContain("kimi-k2.7-code");
+
+    const ebmer = await Bun.file(join(tmpDir, ".opencode", "agents", "ebmer.md")).text();
+    expect(ebmer).toContain(`model: ${DEFAULT_INSTALL_PROVIDERS[0]}/glm-5.2`);
   });
 
   it("should reject invalid provider", async () => {
@@ -381,7 +414,7 @@ describe("install", () => {
     }
   });
 
-  it("fresh install 按用户选择的 provider 重写所有 agent 模型", async () => {
+  it("fresh install 优先使用用户 provider，缺失模型用 opencode-go 兜底", async () => {
     tmpDir = mkdtempSync(join(tmpdir(), "omo-sci-test-"));
 
     await install(
@@ -393,17 +426,15 @@ describe("install", () => {
       { configDir: tmpDir, projectDir: tmpDir },
     );
 
-    const agentDir = join(tmpDir, ".opencode", "agents");
-    const agentFiles = await Array.fromAsync(
-      new Bun.Glob("*.md").scan({ cwd: agentDir, absolute: true }),
-    );
+    const dubin = await Bun.file(join(tmpDir, ".opencode", "agents", "dubin.md")).text();
+    const archimedes = await Bun.file(join(tmpDir, ".opencode", "agents", "archimedes.md")).text();
+    const pubmeder = await Bun.file(join(tmpDir, ".opencode", "agents", "pubmeder.md")).text();
+    const ebmer = await Bun.file(join(tmpDir, ".opencode", "agents", "ebmer.md")).text();
 
-    expect(agentFiles.length).toBe(9);
-    for (const file of agentFiles) {
-      const content = await Bun.file(file).text();
-      expect(content).toContain("model: qwen-bailian/qwen3.7-max");
-      expect(content).not.toContain("model: deepseek/deepseek-v4-pro");
-    }
+    expect(dubin).toContain("model: qwen-bailian/qwen3.7-plus");
+    expect(archimedes).toContain("model: qwen-bailian/qwen3.7-max");
+    expect(pubmeder).toContain("model: opencode-go/minimax-m3");
+    expect(ebmer).toContain("model: opencode-go/glm-5.2");
   });
 
   it("should reject invalid quota", async () => {

@@ -2,6 +2,9 @@
  * config 模块测试
  */
 import { describe, it, expect } from 'bun:test';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 import { loadConfig, validateConfig, deepMerge } from '../src/config';
 import { DEFAULT_CONFIG } from '../src/constants';
 import type { OmoSciConfig } from '../src/types';
@@ -11,6 +14,34 @@ describe('config', () => {
     it('在文件不存在时返回默认值', () => {
       const config = loadConfig('/nonexistent/path/omo-sci.jsonc');
       expect(config).toEqual(DEFAULT_CONFIG);
+      expect(config.environment.mcp_required).toEqual(['unified_search']);
+      expect(config.environment.mcp_optional).toContain('search_cnki');
+      expect(config.environment.mcp_optional).toContain('Consensus__search');
+    });
+
+    it('迁移旧配置：CNKI 和 Consensus 从必选移到可选', () => {
+      const tmpDir = mkdtempSync(join(tmpdir(), 'omo-sci-config-'));
+      try {
+        const configPath = join(tmpDir, 'omo-sci.jsonc');
+        writeFileSync(configPath, JSON.stringify({
+          environment: {
+            mcp_required: ['unified_search', 'search_cnki', 'Consensus__search', 'officecli', 'custom_required_tool'],
+            mcp_optional: ['zotero_search_items', 'officecli'],
+          },
+        }));
+
+        const config = loadConfig(configPath);
+        expect(config.environment.mcp_required).toContain('unified_search');
+        expect(config.environment.mcp_required).toContain('custom_required_tool');
+        expect(config.environment.mcp_required).not.toContain('search_cnki');
+        expect(config.environment.mcp_required).not.toContain('Consensus__search');
+        expect(config.environment.mcp_required).not.toContain('officecli');
+        expect(config.environment.mcp_optional).toContain('search_cnki');
+        expect(config.environment.mcp_optional).toContain('Consensus__search');
+        expect(config.environment.mcp_optional).not.toContain('officecli');
+      } finally {
+        rmSync(tmpDir, { recursive: true, force: true });
+      }
     });
   });
 

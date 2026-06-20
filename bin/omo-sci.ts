@@ -117,7 +117,7 @@ async function handleInstall(args: string[]): Promise<void> {
 
   console.log("正在安装 omo-sci...");
   if (options.providers.length === 0) {
-    console.log(`  提供商: ${DEFAULT_INSTALL_PROVIDERS.join(", ")}（默认，可稍后用 configure 修改）`);
+    console.log(`  提供商: ${DEFAULT_INSTALL_PROVIDERS.join(", ")}（临时兜底；建议安装后先运行 configure 选择自家 provider）`);
   } else {
     console.log(`  提供商: ${options.providers.join(", ")}`);
   }
@@ -242,9 +242,10 @@ function printInstallLocations(prefix: string, configPath: string, projectDirOpt
 function printNextCommands(): void {
   console.log("");
   console.log("下一步:");
-  console.log(`  打开设置向导: ${CLI_RUN} setup`);
-  console.log(`  配置模型 provider: ${CLI_RUN} configure`);
-  console.log(`  验证安装: ${CLI_RUN} doctor --models`);
+  console.log(`  1. 选择模型 provider: ${CLI_RUN} configure`);
+  console.log(`     推荐优先配置 qwen-bailian / zhipu / kimi / minimax / deepseek 等自家 API 或 token plan；opencode-go 作为兜底。`);
+  console.log(`  2. 检查各 agent 模型: ${CLI_RUN} agent`);
+  console.log(`  3. 验证安装: ${CLI_RUN} doctor --models`);
 }
 
 async function handleDoctor(args: string[]): Promise<void> {
@@ -688,8 +689,9 @@ async function promptInstallOptions(): Promise<InstallArgs> {
 
   console.log(renderTitle("模型配置向导"));
   console.log("选择你能调用的 provider，可输入编号或 provider 名，多个用逗号分隔。");
+  console.log("建议优先选择模型自家 API / token plan，opencode-go 放在最后作为兜底。");
   PROVIDER_WHITELIST.forEach((provider, index) => {
-    const defaultMark = DEFAULT_INSTALL_PROVIDERS.includes(provider) ? "（默认）" : "";
+    const defaultMark = DEFAULT_INSTALL_PROVIDERS.includes(provider) ? "（兜底）" : "";
     console.log(`  ${index + 1}. ${provider}${defaultMark}`);
   });
   console.log("");

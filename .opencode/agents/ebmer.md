@@ -1,8 +1,8 @@
 ---
 description: "方法学审稿人。Sprint Contract两阶段盲审、12模式临床失败检查、数据一致性验证。只读。"
 mode: subagent
-model: deepseek/deepseek-v4-pro
-model_fallback: ["opencode-go/qwen3.7-max", "opencode-go/qwen3.7-plus"]
+model: opencode-go/glm-5.2
+model_fallback: ["opencode-go/qwen3.7-max", "deepseek/deepseek-v4-pro", "opencode-go/kimi-k2.6"]
 permission:
   read: allow
 ---
