@@ -1,5 +1,47 @@
 # Changelog
 
+## v0.1.19 (2026-07-07，第三部分)
+
+架构通电：把 Material Passport 的阶段推进/闸门检查从"提示词约定"升级为"工具调用强制"，这是本轮重构最终交付的产品价值——此前 AI 只是被提示词要求推进阶段、记录闸门结果，完全可能走神跳过而不被发现；现在这些操作是真正会失败的工具调用。
+
+- 调研确认 `@opencode-ai/plugin` 已发布在公共 npm registry（此前文档记录为未发布，已过时），加为正式 `dependencies`
+- 新增 `src/plugin-tools.ts`：用官方 `tool()` helper 注册 `passport-status`（只读状态查询）、`passport-advance-stage`（推进阶段，前置条件不满足则 throw）、`passport-record-gate`（记录闸门I/II结果，前置条件不满足则 throw）
+- `src/index.ts` 改用官方 `Plugin`/`tool()` 类型，不再是裸对象 + JSDoc 的推测形态；`sci-doctor` 工具同步迁移
+- `src/agents/dubin.ts`、`src/agents/ebmer.ts` 更新提示词，要求调用上述工具而不是直接改 `passport.json`；同时删除对已废弃的 22-hook 系统的过时引用（`delegate:post`/`stage:exit`/`stage:gate_fail` 钩子名）
+- 新增 `tests/plugin-tools.test.ts`：核心断言是前置条件不满足时必须 throw（不能跳过阶段、不能绕过未通过的闸门）
+- 更新 `docs/dev/opencode-integration-notes.md`：记录调研发现的真实 OpenCode 运行时事件（`session.created`/`session.idle`/`session.compacted` 等）、`tool.execute.before/after` 的已知边界（能观察修改，能否用 throw 拦截未经证实）、`client.session.abort()` 可编程终止会话的确认能力；顺带修正一处已经过时的风险标注（`opencode.json` 合并逻辑早已修复，文档没同步）
+- **尚未验收**：真实 OpenCode TUI 会话中 AI 是否会按提示词实际调用这些工具、失败时错误信息能否完整传导。需要人工跑一遍 `/sci-start` 验证，见 `docs/dev/opencode-integration-notes.md` 的验证命令章节
+- `bun run typecheck` ✅、`bun test` ✅ 183/183、`bun pm pack --dry-run` ✅
+
+## v0.1.19 (2026-07-07)
+
+架构清理：删除从未被生产代码调用的模块（"仓库里没通电的设备"），使代码规模与实际运行的功能保持一致。
+
+- 删除 22 个 lifecycle hooks 系统（`src/hooks/*`）及其 dispatch 机制：注册后从未被生产代码触发
+- 删除 `src/safety/`（circuit-breaker、usage-tracker、content-guard、sprint-contract）：零调用者，熔断/用量追踪/内容安全/盲审合同均未接入实际运行路径
+- 删除 `src/orchestrator/delegation.ts`、`src/orchestrator/summarizer.ts`：零调用者
+- 删除 `src/state/wisdom.ts`：零调用者
+- 删除 `src/router/fallback.ts`：零调用者
+- 删除 `src/environment/check.ts`、`src/environment/reporter.ts`：零调用者（`doctor --models` 走的是 `model-version-check.ts`，不经过这两个文件）
+- 删除 `src/commands/sci-doctor.ts`：CLI 直接使用 `src/doctor.ts`，这层包装从未被引用
+- 删除 `src/index.ts` 中未被消费的 `AGENT_MANIFEST` 常量
+- `src/types.ts` 同步删除 `HookName`/`HookContext`/`HookHandler` 类型及 `OmoSciConfig.disabled_hooks` 字段
+- 同步删除对应测试：`tests/hooks/`、`tests/safety/`、`tests/integration/phase1.test.ts`、`tests/orchestrator/{delegation,summarizer}.test.ts`、`tests/state/wisdom.test.ts`、`tests/router/fallback.test.ts`、`tests/environment/reporter.test.ts`
+- 本次清理不改变任何用户可见行为（CLI、agent 提示词、安装流程、Material Passport 读写均未改动）
+- 代码量从约 10144 行降至 7192 行；测试数从 281 降至 164（全部为已确认存活路径）
+
+架构并档：agent 的分类/显示名/模型链此前分散在 5 处定义（`src/types.ts`、`src/model-config.ts`、`src/router/categories.ts`、`scripts/generate-agent-configs.ts` 各有一份），其中 EBMer 的分类在两处互相矛盾。收敛为单一数据源。
+
+- 新增 `src/registry.ts`：`AGENT_REGISTRY` 作为唯一数据源，包含每个 agent 的分类、显示名、描述、模型优先链、权限；同时提供 `buildAgentFrontmatter()` 供生成脚本和测试共用
+- `src/types.ts` 删除未被任何代码使用的 `AGENT_CATEGORY` 常量（该文件自述"纯类型文件"，这个值导出本就是违规写入）
+- `src/model-config.ts` 删除自带的 `AGENT_CATEGORIES`（与 types.ts 版本冲突的那份），改为从 registry 读取
+- `src/router/categories.ts` 删除 `AGENT_DISPLAY_NAMES`、`AGENT_FALLBACK_ORDERS`（agent 级映射，已迁入 registry），保留 `CATEGORY_LABELS`/`DEFAULT_FALLBACK_ORDERS`/`DEFAULT_MODEL_DENYLIST`（分类级配置，概念不同，供 `install.ts` 使用）
+- `scripts/generate-agent-configs.ts` 删除自带的 `CATEGORY_DEFAULT_MODEL`/`CATEGORY_FALLBACKS`/`agents` 数组/`getPermissions()`，改为读取 registry
+- `src/environment/model-version-check.ts`、`src/commands/sci-agent.ts` 改为从 registry 导入 `AGENT_CATEGORY`/`AGENT_DISPLAY_NAMES`
+- 新增 `tests/registry.test.ts`：断言 registry 数据完整性，并新增"漂移守卫"测试——用 registry 重新渲染每个 agent 的 frontmatter，必须与仓库里已提交的 `.opencode/agents/*.md` 逐字节一致，防止未来再次出现生成脚本与实际生效配置脱节
+- **修正了真实存在的默认模板错误**（此前 5 处映射打架导致的后果）：重新生成 `.opencode/agents/*.md` 后，irber 默认模型从 `qwen3.7-plus` 改为 `qwen3.7-max`，spsser 从 `qwen3.7-max` 改为 `deepseek-v4-pro`，writer 从 `glm-5.2` 改为 `qwen3.7-plus`，另有 4 个 agent 的 fallback 顺序/供应商前缀订正。**这些修正对已安装用户无影响**——`omo-sci install` 每次都会用 `applyAgentModelPlan()` 按 `AGENT_FALLBACK_ORDERS`（本次迁入 registry 的那份）重写这些字段，此前的错误只存在于仓库里的默认模板文本，从未被真实安装流程读取
+- `bun run typecheck` ✅、`bun test` ✅ 176/176
+
 ## v0.1.18 (2026-06-20)
 
 - 根据 `模型调研-moonshot.pdf` 更新默认模型矩阵：Qwen 3.7 Plus/Max 负责长程编排和研究设计，MiniMax M3/Kimi K2.6 负责文献检索，DeepSeek V4 Pro 负责统计代码，GLM-5.2 负责审稿和中文规范文本

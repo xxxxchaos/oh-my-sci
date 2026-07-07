@@ -7,7 +7,7 @@
 
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { AGENT_CATEGORIES } from '../model-config';
+import { AGENT_CATEGORY } from '../registry';
 import type { AgentName } from '../types';
 
 /** 模型最新版本注册表 */
@@ -66,7 +66,7 @@ export function checkModelVersions(projectDir?: string): ModelVersionCheckResult
     const currentModel = modelMatch[1].trim();
     const currentVersion = extractModelId(currentModel);
     const entry = LATEST_MODEL_VERSIONS[currentVersion];
-    const category = AGENT_CATEGORIES[agent as AgentName];
+    const category = AGENT_CATEGORY[agent as AgentName];
 
     if (!entry || (entry.categories && (!category || !entry.categories.includes(category)))) {
       // 无更高级版本，标记为 ok

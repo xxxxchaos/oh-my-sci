@@ -1,8 +1,8 @@
 # OpenCode 集成契约
 
-> 最后更新: 2026-06-16
-> 来源: https://opencode.ai/docs/plugins/ + /docs/commands/ + /docs/agents/ + /docs/config/
-> 状态: Phase 0 验证通过
+> 最后更新: 2026-07-07
+> 来源: 本机已安装 OpenCode CLI（v1.17.13）的 `@opencode-ai/plugin`/`@opencode-ai/sdk` 类型定义（`npm view` 已确认发布在公共 npm registry，latest 1.17.14）+ 2026-06-16 版 https://opencode.ai/docs/plugins/ 等文档
+> 状态: 2026-06-16 的部分结论已过时，见下方「2026-07-07 更新」章节
 
 ## 插件加载机制
 
@@ -45,15 +45,32 @@ export const MyPlugin: Plugin = async (ctx) => {
 | `directory` | string | 插件目录路径 |
 | `worktree` | string | 工作树路径 |
 
-返回的 hooks 对象支持：
+返回的 hooks 对象支持（完整列表见本机 `node_modules/@opencode-ai/plugin/dist/index.d.ts` 的 `Hooks` 接口）：
 | Hook | 签名 | 说明 |
 |------|------|------|
-| `event` | `(input) => void` | 通用事件处理 |
-| `"tool.execute.before"` | `(input, output) => void` | 工具执行前拦截 |
-| `"tool.execute.after"` | `(input, output) => void` | 工具执行后拦截 |
-| `"shell.env"` | `(input, output) => void` | 环境变量注入 |
-| `"experimental.session.compacting"` | `(input, output) => void` | 会话压缩钩子 |
-| `tool` | `Record<string, ToolDef>` | 注册自定义工具 |
+| `event` | `(input: { event: Event }) => Promise<void>` | 通用事件处理，`Event` 是 SDK 真实广播的事件联合类型（见下方「已确认的运行时事件」） |
+| `tool` | `Record<string, ToolDefinition>` | 注册自定义工具，用 `tool()` helper 定义 |
+| `"tool.execute.before"` / `"tool.execute.after"` | `(input, output) => Promise<void>` | 每次工具调用前后触发，可读写 `output.args`/`output.output`/`output.metadata`。**已确认可以观察和修改参数/结果；能否用 throw 拒绝调用未经证实**——已发布的第三方插件（如 oh-my-openagent）都只用它做记录/通知，没有用来否决调用 |
+| `"permission.ask"` | `(input: Permission, output: { status: "ask"\|"deny"\|"allow" }) => Promise<void>` | 拦截触发权限确认的操作（如 agent 配置 `edit: ask` 时的编辑动作），可设置 `status: "deny"` 真正拒绝。**只对 `ask` 权限模式的操作生效**，agent 配置为 `allow` 的操作不会走这个钩子 |
+| `"shell.env"` | `(input, output) => Promise<void>` | 环境变量注入 |
+| `"experimental.session.compacting"` / `"experimental.compaction.autocontinue"` | `(input, output) => Promise<void>` | 会话压缩前后钩子——对应此前设计但已删除的 `quality:compaction_pre/post` |
+| `"experimental.chat.system.transform"` | `(input, output: { system: string[] }) => Promise<void>` | 可修改发给模型的 system prompt——理论上可以用来自动注入 Material Passport 摘要，本轮未实现 |
+| `"chat.message"` / `"chat.params"` | — | 新消息到达时 / 修改发给 LLM 的参数 |
+
+### 已确认的运行时事件（`event` hook 的 `Event.type`）
+
+来自 `@opencode-ai/sdk` 的 `gen/types.gen.d.ts`，这些不是猜测出来的名字，是 SDK 真实定义的事件类型：
+
+- `session.created` / `session.updated` / `session.deleted` / `session.idle` / `session.status` / `session.compacted` / `session.error` / `session.diff`
+- `message.updated` / `message.removed` / `message.part.updated` / `message.part.removed`
+- `permission.updated` / `permission.replied`
+- `file.edited` / `file.watcher.updated`
+
+这些是此前被删除的 `hooks/session.ts` 等模块想要模拟、但凭空发明名字的那类信号的**真实版本**。如果要复活会话状态自动保存，应该订阅这些真实事件，而不是重新设计一套自定义 hook 名。
+
+### 已确认：可编程终止会话
+
+`ctx.client`（`PluginInput.client`，即 `createOpencodeClient()` 返回值）暴露 `client.session.abort(...)`（`@opencode-ai/sdk` 的 `SessionAbortData`/`SessionAbortResponses`）。即使 `tool.execute.before` 的 throw 语义未经证实，插件仍然有一条确定可行的路径：在 `event` 或 `tool.execute.before` 里累计步数/循环特征，超限时调用 `client.session.abort()` 强制结束整个会话——用"总闸"代替"精确拦截单次调用"。本轮未实现，留给后续熔断器复活时使用。
 
 ### 自定义工具注册
 
@@ -80,30 +97,26 @@ export const MyPlugin: Plugin = async (ctx) => {
 - 插件工具同名时覆盖内置工具
 - tool helper 的 `schema` 提供 `.string()`、`.number()` 等类型方法
 
-### 关键发现：@opencode-ai/plugin 包未发布到 npm
+### 2026-07-07 更新：@opencode-ai/plugin 已确认发布在 npm
 
-截至 2026-06-16，`@opencode-ai/plugin` **不存在于 npm registry 中**。该类型包是 OpenCode CLI 内置的，在 `.opencode/plugins/` 目录下的文件中可直接 import。
+`npm view @opencode-ai/plugin version` 返回真实结果（截至本次调研 latest 为 `1.17.14`，与本机 OpenCode CLI 版本 1.17.13 同步发布），2026-06-16 记录的"不存在于 npm registry 中"已经过时。已在 `package.json` 中把它加为正式 `dependencies`（`^1.0.0`），`src/index.ts` 和 `src/plugin-tools.ts` 直接 `import { tool, type Plugin } from '@opencode-ai/plugin'`，不再使用下方的"推测形态"。
 
-对于发布为 npm 包的插件，我们有两种方案：
+`tool()` helper 本身只是一个恒等函数（`dist/tool.js`：`export function tool(input) { return input; }`），不做运行时 zod 校验——校验由 OpenCode 宿主在调用 `execute()` 之前完成。这意味着单元测试可以直接用普通对象调用 `execute(args, context)`，不需要真的跑一遍 zod parse。
 
-1. **省略类型导入** — 在 `src/index.ts` 中直接导出函数，不使用 `Plugin` 类型标注
-2. **本地类型存根** — 在项目中定义自己的 Plugin 类型
+以下「推测形态」章节保留作历史记录，不再是当前实现。
 
-**本项目的选择：方案 1（见下文「冻结的集成形态」）**
+### 2026-06-16 的推测形态（已废弃，见上）
 
-### 推测形态（typecheck 通过，runtime 待验收）
-
-由于不能 import `tool()` helper，本项目使用**裸对象形态**注册工具：
+当时判断 `@opencode-ai/plugin` 不可用，因此使用**裸对象形态**注册工具：
 
 ```typescript
-// src/index.ts — 推测形态（typecheck 通过，runtime 待验收）
+// 已废弃的旧形态
 export const OmoSciPlugin = async (ctx) => {
   return {
     tool: {
       "sci-doctor": {
         description: "工具描述文字",
         async execute(args, context) {
-          // 执行逻辑
           return "结果"
         },
       },
@@ -112,15 +125,7 @@ export const OmoSciPlugin = async (ctx) => {
 }
 ```
 
-**形态差异**：
-| 官方形态 (不可用) | 本项目替代形态 (推测，待验收) |
-|---|---|
-| `tool({ description, args, execute })` | 裸对象 `{ description, execute }` |
-| `tool.schema.string()` 参数定义 | 无参数定义，不使用 `args` schema |
-| `Plugin` 类型标注 | JSDoc 注释描述接口 |
-| `import { tool } from "@opencode-ai/plugin"` | 无外部依赖 |
-
-**验证状态**：该形态在 typecheck 和 test 中通过，但需在 OpenCode runtime 中真实验收。Runtime 验收需要在 OpenCode TUI 中执行 `/sci-doctor` 并确认输出，这是本地环境依赖的步骤，当前 CI 中无法自动覆盖。
+现在的形态见本文档「Passport 强制工具」章节和 `src/index.ts`/`src/plugin-tools.ts` 源码。
 
 ## OpenCode 运行时注册策略
 
@@ -145,11 +150,9 @@ OpenCode 需要以下三个要素才能识别 omo-sci：
 ```
 
 **注意事项**：
-- 如果项目已有 `opencode.json`（例如同时安装了多个 OpenCode 插件），`install()` 当前会覆盖该文件
-- 后续需要支持合并读取已有 `opencode.json` 的 plugin 数组
 - 全局 `~/.config/opencode/opencode.json` 同样可以注册插件，但本项目优先使用项目级配置
 
-> **风险标注 (P2-6)**: 当前 `install()` 直接写入 `{ "plugin": ["omo-sci"] }`，会覆盖项目已有的 OpenCode 配置（如其他插件、agent、command 声明）。Phase 2 前需要实现合并逻辑（读取已有 plugin 数组，去重后写入），在合并逻辑完成前，多插件项目需手动备份恢复 `opencode.json`。
+> **P2-6 已修复（2026-07-07 复核确认）**：本节此前记录"`install()` 直接写入会覆盖已有配置"的风险。复核 `src/install.ts` 的 `mergeOpencodeConfig()` 发现该函数已经会读取已有 `opencode.json`、保留其余字段、把 `plugin` 数组去重合并后再写入——这个风险已经不存在，只是文档没有同步更新。
 
 ### 验证命令
 
@@ -166,6 +169,13 @@ opencode agent list | rg dubin
 #   /sci-status           — 验证 sci-status 命令是否生效
 #   /@dubin <你的问题>    — 验证 dubin agent 是否可被调用
 #
+# 验证 Passport 强制工具（2026-07-07 新增，尚未做过）：
+#   /sci-start 走一遍到阶段 0 完成，观察 Dubin 是否真的调用了
+#   passport-advance-stage 而不是自己改 passport.json；
+#   故意在 passport.json 里把 stage_0_intake.status 改回 pending，
+#   再让 Dubin 尝试推进阶段，确认工具调用报错、AI 能看到错误信息
+#   并如实告诉用户，而不是假装成功。
+#
 # 注意: TUI 验收是本地环境依赖的步骤，当前 CI 中无法自动覆盖。
 ```
 
@@ -176,7 +186,8 @@ opencode agent list | rg dubin
 - OpenCode runtime 对 `opencode.json` 中 `plugin` 数组的加载机制依赖 npm 包名解析，需要 `omo-sci` 包在 npm 上可访问，或通过本地路径加载
 - 当前未在 OpenCode runtime 中完全验证插件加载 + tool 注册 + agent 识别的端到端流程
 - 命令通过 `.opencode/commands/*.md` 文件声明，需要 OpenCode 在启动时扫描这些文件
-- plugin tool 裸对象形态（`{ description, execute }` 无 `tool()` helper wrapper）：typecheck 通过，runtime 待验收。参见上文「推测形态（typecheck 通过，runtime 待验收）」章节。
+- plugin tool 已改用官方 `tool()` helper（见 `src/plugin-tools.ts`），typecheck 和单元测试通过；但和 2026-06-16 时一样，**尚未在真实 OpenCode TUI 会话里验证 `passport-advance-stage`/`passport-record-gate` 被 AI 实际调用、报错能正确传导给 AI**。这是本地环境依赖的步骤，CI 中无法自动覆盖，需要人工在 OpenCode TUI 里跑一遍 `/sci-start` 流程验收
+- `tool.execute.before` 里 throw 能否直接拒绝内置工具（bash/edit/write）调用，未经证实（见上文「已确认的运行时事件」表格）。当前 Passport 强制工具走的是"注册全新自定义工具，内部逻辑 throw"这条已确认可行的路径，没有依赖这个未证实的假设
 
 ## 自定义命令
 
@@ -285,25 +296,41 @@ permission:
 - **Primary agents**：Tab 键循环切换
 - **Subagents**：`@` 提及自动调用
 
-## 冻结的集成形态（基于 Phase 0 验证）
+## Passport 强制工具（2026-07-07，第一个"通电"实现）
+
+在 `src/plugin-tools.ts` 里用官方 `tool()` helper 注册了三个工具，把 Material Passport 的阶段推进/闸门检查从"提示词约定"升级为"工具调用强制"：
+
+| 工具 | 作用 | 强制点 |
+|---|---|---|
+| `passport-status` | 只读，返回当前阶段/闸门/数据溯源标签摘要 | 无（只读） |
+| `passport-advance-stage` | 把 passport 推进到目标阶段 | 内部调用 `validatePassportPreconditions()`（`src/state/passport.ts` 已有且已测试的纯函数），前置条件不满足直接 `throw`，OpenCode 会把这次工具调用标记为失败 |
+| `passport-record-gate` | 记录闸门 I/II 检查结果 | 同上，额外校验进入该闸门的前置条件（如闸门 I 要求阶段 2 已完成） |
+
+设计要点：
+- `throw` 在自定义工具的 `execute()` 里必定导致调用失败——这是标准 tool-calling 框架的基本契约，不依赖上面「已知限制」里提到的、尚未证实的 `tool.execute.before` 拦截语义
+- `passportAdvanceStage` 有一个时序细节：目标阶段的前置条件（如"上一阶段已完成"）在这次调用之前必然不成立，因为"完成当前阶段"和"推进"是同一次调用要做的两件事。解决方式是先在内存里构造一份"当前阶段已标记完成"的候选 passport，据此校验目标阶段的前置条件，通过后才真正持久化——这样既不会误拒正常的逐阶段推进，也不会放行跳级（因为只有 `current_stage` 被标记完成，中间被跳过的阶段仍是 `pending`）
+- Dubin/EBMer 的提示词已更新为要求调用这些工具而不是直接改 `passport.json`（见 `src/agents/dubin.ts`「Passport 工具」小节、`src/agents/ebmer.ts`「记录闸门结果」小节）
+
+**尚未验收**：真实 OpenCode TUI 会话里，AI 是否会按提示词要求实际调用这些工具、调用失败时错误信息能否完整传给 AI。这需要人工在 OpenCode TUI 跑一遍 `/sci-start` 完整流程验证。
+
+## 冻结的集成形态（基于 Phase 0 验证，工具注册部分已被上一节取代）
 
 ### `src/index.ts` 导出形态
 
-`src/index.ts` 导出**一个或多个 OpenCode 插件函数**。这些函数是异步的，接收 ctx 对象，返回 hooks 对象。不需要 `@opencode-ai/plugin` 类型包。
+`src/index.ts` 导出 `OmoSciPlugin`，类型标注为 `@opencode-ai/plugin` 的 `Plugin`。
 
 ```typescript
-// src/index.ts — 插件入口
-export const OmoSciPlugin = async (ctx: {
-  project: unknown;
-  client: unknown;
-  $: (strings: TemplateStringsArray, ...values: unknown[]) => Promise<unknown>;
-  directory: string;
-  worktree: string;
-}) => {
+// src/index.ts — 插件入口（当前实现）
+import { tool, type Plugin } from '@opencode-ai/plugin';
+
+export const OmoSciPlugin: Plugin = async () => {
   return {
-    // 可选的 hooks
-    // tool: { ... }
-    // event: async ({ event }) => { ... }
+    tool: {
+      'sci-doctor': tool({ description: '...', args: {}, async execute() { /* ... */ } }),
+      'passport-status': passportStatus,
+      'passport-advance-stage': passportAdvanceStage,
+      'passport-record-gate': passportRecordGate,
+    },
   };
 };
 ```
@@ -328,7 +355,8 @@ export const OmoSciPlugin = async (ctx: {
     "omo-sci": "./bin/omo-sci.ts"
   },
   "dependencies": {
-    // 运行时依赖
+    "@opencode-ai/plugin": "^1.0.0", // tool() helper + Plugin 类型，已确认发布在 npm
+    "jsonc-parser": "^3.0.0"
   },
   "devDependencies": {
     "typescript": "^5.5.0",

@@ -8,8 +8,9 @@
 import { readFileSync, existsSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { loadConfig } from '../config';
-import { extractAgentModels, AGENT_CATEGORIES, applyAgentModelPlan, modelKey } from '../model-config';
-import { AGENT_DISPLAY_NAMES, CATEGORY_LABELS } from '../router/categories';
+import { extractAgentModels, applyAgentModelPlan, modelKey } from '../model-config';
+import { CATEGORY_LABELS } from '../router/categories';
+import { AGENT_CATEGORY, AGENT_DISPLAY_NAMES } from '../registry';
 import { PROVIDER_REGISTRY, PROVIDER_TO_AUTH_NAME, toAuthModelKey } from '../router/provider';
 import type { AgentName, CapabilityCategory, ProviderId } from '../types';
 import { homedir } from 'node:os';
@@ -86,7 +87,7 @@ export function getAgentStatus(projectDir?: string): AgentStatus[] {
 
     const displayName =
       AGENT_DISPLAY_NAMES[agentName as AgentName] ?? agentName;
-    const categoryKey = AGENT_CATEGORIES[agentName as AgentName];
+    const categoryKey = AGENT_CATEGORY[agentName as AgentName];
     const categoryLabel = categoryKey
       ? (CATEGORY_LABELS[categoryKey] ?? categoryKey)
       : '未知';
@@ -202,7 +203,7 @@ export function setAgentModel(
  * 恢复所有 agent 为按分类路由的默认模型分配
  *
  * 读取 ~/.config/opencode/omo-sci.jsonc 中的 router.categories，
- * 按 AGENT_CATEGORIES 映射重新生成每个 agent 的 model/model_fallback，
+ * 按 AGENT_CATEGORY 映射重新生成每个 agent 的 model/model_fallback，
  * 写入所有 agent .md 文件，并返回更新后的 agent 表格。
  *
  * @param projectDir - 项目目录（默认 process.cwd()）
@@ -729,7 +730,7 @@ export function renderModelPicker(agentName: string, projectDir?: string): strin
   const statuses = getAgentStatus(projectDir);
   const agent = statuses.find(s => s.agentName === agentName);
   const displayName = AGENT_DISPLAY_NAMES[agentName as AgentName] ?? agentName;
-  const category = AGENT_CATEGORIES[agentName as AgentName];
+  const category = AGENT_CATEGORY[agentName as AgentName];
   const categoryLabel = category ? (CATEGORY_LABELS[category] ?? category) : '未知';
   const currentModel = agent?.currentModel ?? '未配置';
 

@@ -2,7 +2,7 @@
 description: "研究设计师。PICO框架提取、FINER评估、研究类型判定、样本量计算、偏倚控制策略。"
 mode: subagent
 model: opencode-go/qwen3.7-max
-model_fallback: ["opencode-go/qwen3.7-plus", "deepseek/deepseek-v4-pro", "opencode-go/kimi-k2.7-code"]
+model_fallback: ["opencode-go/qwen3.7-plus", "opencode-go/deepseek-v4-pro", "opencode-go/glm-5.2"]
 permission:
   read: allow
   edit: allow

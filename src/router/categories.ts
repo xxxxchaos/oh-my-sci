@@ -1,10 +1,15 @@
 /**
- * omo-sci 分类路由 — 分类标签与 agent 显示名
+ * omo-sci 分类路由 — 能力分类标签与分类级默认 fallback 顺序
  *
- * 定义能力分类的中文标签、agent 中文显示名、以及默认 fallback 顺序。
+ * agent 级的显示名/模型链已收敛到 src/registry.ts（唯一数据源）。
+ * 这里只保留"分类"这个更粗粒度维度的配置：
+ * - CATEGORY_LABELS：分类的中文说明
+ * - DEFAULT_FALLBACK_ORDERS / DEFAULT_MODEL_DENYLIST：install.ts 在生成
+ *   config.router.categories[cat].fallback_chain（写入 omo-sci.jsonc，
+ *   与具体 agent 无关）时使用的分类级排序和禁用表
  */
 
-import type { AgentName, CapabilityCategory } from '../types';
+import type { CapabilityCategory } from '../types';
 
 export const CATEGORY_LABELS: Record<CapabilityCategory, string> = {
   'agent-orchestration': '编排调度 — 多轮对话、工具调用、任务委派',
@@ -15,18 +20,6 @@ export const CATEGORY_LABELS: Record<CapabilityCategory, string> = {
   'methodical-review': '方法学审查 — 统计正确性、研究设计批判',
 };
 
-export const AGENT_DISPLAY_NAMES: Record<AgentName, string> = {
-  dubin: 'Dubin (主编排者)',
-  archimedes: 'Archimedes (研究设计师)',
-  irber: 'IRBer (计划审查员)',
-  pubmeder: 'Pubmeder (文献搜索员)',
-  spsser: 'SPSSer (统计分析师)',
-  writer: 'Writer (论文写作者)',
-  submitter: 'Submitter (投稿协调员)',
-  ebmer: 'EBMer (方法学审稿人)',
-  polisher: 'Polisher (逻辑审稿人)',
-};
-
 export const DEFAULT_FALLBACK_ORDERS: Record<CapabilityCategory, string[]> = {
   'agent-orchestration': ['qwen3.7-plus', 'qwen3.7-max', 'kimi-k2.6', 'glm-5.2'],
   'deep-reasoning': ['qwen3.7-max', 'qwen3.7-plus', 'deepseek-v4-pro', 'kimi-k2.7-code'],
@@ -34,18 +27,6 @@ export const DEFAULT_FALLBACK_ORDERS: Record<CapabilityCategory, string[]> = {
   'fast-search': ['minimax-m3', 'kimi-k2.6', 'qwen3.7-plus', 'qwen3.7-max', 'deepseek-v4-flash'],
   'long-context': ['qwen3.7-plus', 'minimax-m3', 'kimi-k2.6', 'glm-5.2', 'qwen3.7-max'],
   'methodical-review': ['glm-5.2', 'qwen3.7-max', 'deepseek-v4-pro', 'kimi-k2.6'],
-};
-
-export const AGENT_FALLBACK_ORDERS: Record<AgentName, string[]> = {
-  dubin: ['qwen3.7-plus', 'qwen3.7-max', 'kimi-k2.6', 'glm-5.2'],
-  archimedes: ['qwen3.7-max', 'qwen3.7-plus', 'deepseek-v4-pro', 'glm-5.2'],
-  irber: ['qwen3.7-max', 'glm-5.2', 'deepseek-v4-pro', 'kimi-k2.6'],
-  pubmeder: ['minimax-m3', 'kimi-k2.6', 'qwen3.7-plus', 'qwen3.7-max', 'deepseek-v4-flash', 'glm-5.2'],
-  spsser: ['deepseek-v4-pro', 'qwen3.7-max', 'kimi-k2.7-code', 'qwen3.7-plus', 'minimax-m3'],
-  writer: ['qwen3.7-plus', 'glm-5.2', 'kimi-k2.6', 'qwen3.7-max'],
-  submitter: ['qwen3.7-plus', 'glm-5.2', 'qwen3.7-max', 'kimi-k2.6'],
-  ebmer: ['glm-5.2', 'qwen3.7-max', 'deepseek-v4-pro', 'kimi-k2.6'],
-  polisher: ['glm-5.2', 'qwen3.7-plus', 'kimi-k2.6', 'qwen3.7-max'],
 };
 
 export const DEFAULT_MODEL_DENYLIST: Partial<Record<CapabilityCategory, string[]>> = {

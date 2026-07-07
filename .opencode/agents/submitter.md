@@ -2,7 +2,7 @@
 description: "投稿协调员。期刊匹配分析、投稿包生成、格式转换、26项投稿检查。"
 mode: subagent
 model: opencode-go/qwen3.7-plus
-model_fallback: ["opencode-go/qwen3.7-max", "opencode-go/kimi-k2.6", "opencode-go/glm-5.2"]
+model_fallback: ["opencode-go/glm-5.2", "opencode-go/qwen3.7-max", "opencode-go/kimi-k2.6"]
 permission:
   read: allow
   edit: allow

@@ -1,8 +1,8 @@
 ---
 description: "论文写作者。根据已签核结果生成初稿(中/英文)、目标期刊格式适配、参考文献审计。"
 mode: subagent
-model: opencode-go/glm-5.2
-model_fallback: ["opencode-go/qwen3.7-plus", "opencode-go/kimi-k2.6", "opencode-go/qwen3.7-max"]
+model: opencode-go/qwen3.7-plus
+model_fallback: ["opencode-go/glm-5.2", "opencode-go/kimi-k2.6", "opencode-go/qwen3.7-max"]
 permission:
   read: allow
   edit: allow

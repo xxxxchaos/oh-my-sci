@@ -1,9 +1,12 @@
 /**
  * categories.ts 测试
+ *
+ * agent 级映射（显示名、模型链）已迁移到 src/registry.ts，
+ * 断言见 tests/registry.test.ts。这里只保留分类级配置的断言。
  */
 import { describe, it, expect } from 'bun:test';
-import { AGENT_FALLBACK_ORDERS, CATEGORY_LABELS, AGENT_DISPLAY_NAMES, DEFAULT_FALLBACK_ORDERS, DEFAULT_MODEL_DENYLIST } from '../../src/router/categories';
-import type { CapabilityCategory, AgentName } from '../../src/types';
+import { CATEGORY_LABELS, DEFAULT_FALLBACK_ORDERS, DEFAULT_MODEL_DENYLIST } from '../../src/router/categories';
+import type { CapabilityCategory } from '../../src/types';
 
 describe('categories', () => {
   describe('CATEGORY_LABELS', () => {
@@ -24,27 +27,6 @@ describe('categories', () => {
     });
   });
 
-  describe('AGENT_DISPLAY_NAMES', () => {
-    it('包含全部 9 个 agent', () => {
-      const expectedAgents: AgentName[] = [
-        'dubin',
-        'archimedes',
-        'irber',
-        'pubmeder',
-        'spsser',
-        'writer',
-        'submitter',
-        'ebmer',
-        'polisher',
-      ];
-      for (const agent of expectedAgents) {
-        expect(AGENT_DISPLAY_NAMES[agent]).toBeDefined();
-        expect(typeof AGENT_DISPLAY_NAMES[agent]).toBe('string');
-      }
-      expect(Object.keys(AGENT_DISPLAY_NAMES).length).toBe(9);
-    });
-  });
-
   describe('DEFAULT_FALLBACK_ORDERS', () => {
     it('每个分类至少有 2 个 fallback 模型', () => {
       for (const [category, models] of Object.entries(DEFAULT_FALLBACK_ORDERS)) {
@@ -60,15 +42,6 @@ describe('categories', () => {
       expect(DEFAULT_FALLBACK_ORDERS['fast-search']).not.toContain('kimi-k2.7-code');
       expect(DEFAULT_FALLBACK_ORDERS['chinese-writing']).not.toContain('kimi-k2.7-code');
       expect(DEFAULT_MODEL_DENYLIST['fast-search']).toContain('kimi-k2.7-code');
-    });
-
-    it('agent 级推荐矩阵锁定 moonshot 调研结论', () => {
-      expect(AGENT_FALLBACK_ORDERS.dubin[0]).toBe('qwen3.7-plus');
-      expect(AGENT_FALLBACK_ORDERS.archimedes[0]).toBe('qwen3.7-max');
-      expect(AGENT_FALLBACK_ORDERS.pubmeder.slice(0, 2)).toEqual(['minimax-m3', 'kimi-k2.6']);
-      expect(AGENT_FALLBACK_ORDERS.spsser[0]).toBe('deepseek-v4-pro');
-      expect(AGENT_FALLBACK_ORDERS.ebmer[0]).toBe('glm-5.2');
-      expect(AGENT_FALLBACK_ORDERS.polisher[0]).toBe('glm-5.2');
     });
   });
 });

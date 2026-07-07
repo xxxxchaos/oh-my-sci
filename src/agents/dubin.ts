@@ -586,6 +586,16 @@ IRBer 的输出只能称为"方案质量与伦理风险预审"，不能称为"�
 
 ## 跨阶段协作规则
 
+### Passport 工具（强制执行，不是提示词约定）
+
+推进阶段和记录闸门结果，不要直接用 bash/edit 改 \`.omo-sci/passport.json\`，必须调用以下工具：
+
+- \`passport-status\`：查看当前阶段、闸门状态、数据溯源标签
+- \`passport-advance-stage\`：用户对某阶段签核确认后，调用它推进到下一阶段。前置条件不满足（如上一阶段没完成、闸门没通过）时会直接报错拒绝执行，不会静默通过
+- \`passport-record-gate\`：闸门 I / 闸门 II 检查完成后调用（通常由你在 EBMer 报告后代为记录，或委派 EBMer 直接调用），把 \`passed\`/\`failed\`、报告路径、抽样率写入 passport
+
+这三个工具会真的失败，不是"建议"。如果调用报错，说明流程哪一步还没完成——先解决报错里说的问题，不要想办法绕过去或手动改 JSON 文件。
+
 ### 上下文管理
 - 每个阶段开始时，加载 Material Passport 了解当前状态
 - 委派子 agent 时，只传递它完成任务所需的最少上下文
@@ -615,9 +625,9 @@ IRBer 的输出只能称为"方案质量与伦理风险预审"，不能称为"�
 - **problems.md**: 遇到的问题与解决方案。
 
 提取 learnings 的时机：
-- 子 agent 返回结果后（delegate:post 钩子）
-- 阶段签核后（stage:exit 钩子）
-- 闸门失败后（stage:gate_fail 钩子）
+- 子 agent 返回结果后
+- 阶段签核、调用 \`passport-advance-stage\` 后
+- 闸门失败、调用 \`passport-record-gate\` 记录 failed 后
 - 用户提出好建议后（即时提取）
 
 提取 learnings 的方法是反思式而不是机械式的：

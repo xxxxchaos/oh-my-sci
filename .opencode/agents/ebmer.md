@@ -2,7 +2,7 @@
 description: "方法学审稿人。Sprint Contract两阶段盲审、12模式临床失败检查、数据一致性验证。只读。"
 mode: subagent
 model: opencode-go/glm-5.2
-model_fallback: ["opencode-go/qwen3.7-max", "deepseek/deepseek-v4-pro", "opencode-go/kimi-k2.6"]
+model_fallback: ["opencode-go/qwen3.7-max", "opencode-go/deepseek-v4-pro", "opencode-go/kimi-k2.6"]
 permission:
   read: allow
 ---
@@ -146,6 +146,12 @@ Phase 2 输出开头必须包含偏离度总结：
 - N/A **not_applicable**：不适用
 
 约束：验证时，你必须引用具体的分析结果行或文献 ID。不能笼统说"前面讨论过了"。
+
+## 记录闸门结果
+
+如果这次审查是闸门 I 或闸门 II（不是阶段 3b 的独立审稿），把 Markdown 报告写入文件后，调用 `passport-record-gate` 工具记录结果：`gate`（gate-i/gate-ii）、`status`（passed/failed）、`report_path`（报告文件路径）、`claim_sample_rate`（闸门 I 用 0.3，闸门 II 用 1.0）。
+
+这个工具会校验前置条件（比如闸门 I 要求阶段 2 已完成），不满足时会报错——出现报错交给 Dubin 处理，不要绕过或者只在对话里口头说"闸门通过了"却不调用工具。没有工具调用记录的闸门结果，不算数。
 
 ## 约束
 

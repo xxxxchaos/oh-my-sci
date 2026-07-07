@@ -29,19 +29,6 @@ export type CapabilityCategory =
   | 'long-context'
   | 'methodical-review';
 
-/** Agent → 能力分类映射表 */
-export const AGENT_CATEGORY: Record<AgentName, CapabilityCategory> = {
-  dubin: 'agent-orchestration',
-  archimedes: 'deep-reasoning',
-  irber: 'agent-orchestration',
-  pubmeder: 'fast-search',
-  spsser: 'deep-reasoning',
-  writer: 'chinese-writing',
-  submitter: 'agent-orchestration',
-  ebmer: 'deep-reasoning',
-  polisher: 'chinese-writing',
-} as const;
-
 /** 模型提供商 */
 export type ProviderId =
   | 'deepseek'
@@ -249,48 +236,6 @@ export interface BoulderState {
 }
 
 // ====================================================================
-// Hook Types
-// ====================================================================
-
-/** 22 个生命周期钩子 */
-export type HookName =
-  | 'session:start'
-  | 'session:end'
-  | 'session:resume'
-  | 'session:interrupt'
-  | 'stage:entry'
-  | 'stage:exit'
-  | 'stage:gate_check'
-  | 'stage:gate_pass'
-  | 'stage:gate_fail'
-  | 'delegate:pre'
-  | 'delegate:post'
-  | 'delegate:error'
-  | 'model:select'
-  | 'model:fallback'
-  | 'quality:loop_detect'
-  | 'quality:compaction_pre'
-  | 'quality:compaction_post'
-  | 'quality:token_warn'
-  | 'review:phase1'
-  | 'review:phase2'
-  | 'user:signoff'
-  | 'user:clarify';
-
-/** 钩子上下文 */
-export interface HookContext {
-  hook: HookName;
-  agent?: AgentName;
-  stage?: StageId;
-  passport?: MaterialPassport;
-  boulder?: BoulderState;
-  metadata?: Record<string, unknown>;
-}
-
-/** 钩子处理器签名 */
-export type HookHandler = (ctx: HookContext) => Promise<void> | void;
-
-// ====================================================================
 // Router Types
 // ====================================================================
 
@@ -368,8 +313,6 @@ export interface OmoSciConfig {
   router: RouterConfig;
   /** 禁用的 agent 列表 */
   disabled_agents?: AgentName[];
-  /** 禁用的钩子列表 */
-  disabled_hooks?: HookName[];
   /** 安全机制配置 */
   safety: SafetyConfig;
   /** 用量监控配置 */

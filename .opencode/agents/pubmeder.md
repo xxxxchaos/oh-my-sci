@@ -2,7 +2,7 @@
 description: "文献搜索员。PubMed 核心检索，CNKI/Consensus 等可选增强，四色分类证据矩阵，效应量提取。"
 mode: subagent
 model: opencode-go/minimax-m3
-model_fallback: ["opencode-go/kimi-k2.6", "opencode-go/qwen3.7-plus", "deepseek/deepseek-v4-flash"]
+model_fallback: ["opencode-go/kimi-k2.6", "opencode-go/qwen3.7-plus", "opencode-go/qwen3.7-max", "opencode-go/deepseek-v4-flash", "opencode-go/glm-5.2"]
 permission:
   read: allow
   edit: allow
