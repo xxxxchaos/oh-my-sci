@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.2.1 (2026-07-08)
+
+修复 `/sci-start` 启动即报错的 bug（实测反馈：v0.1.18 使用中发现，v0.2.0 仍未修复）。
+
+### 问题
+
+`.opencode/commands/sci-start.md` 里给 Dubin 的启动指令写成"调用 `createInterview()`""调用 `getNextPrompt()`""运行 `/sci-doctor`"——这三者都不是 Dubin 能调用的东西：前两个是 `src/orchestrator/interview.ts` 里的纯 TypeScript 内部函数，从未注册为 Dubin 的工具；`/sci-doctor` 是给用户在聊天框里输入的斜杠命令，Dubin 自己没有触发它的能力。Dubin 的提示词要求"不编造调用结果"，于是每次 `/sci-start` 开场都会先声明这几个 API 不存在，然后才勉强以角色身份开始对话——体验上像是"启动就报错"。
+
+其余 4 个命令文件（`sci-doctor.md`/`sci-status.md`/`sci-usage.md`/`sci-agent.md`）都遵循正确模式：指示 Dubin 用 bash 工具执行 `bun run bin/omo-sci.ts <子命令>`。唯独 `sci-start.md` 没有遵循这个模式。
+
+### 修复
+
+- `.opencode/commands/sci-start.md`：改为指示 Dubin 执行 `bun run bin/omo-sci.ts start`（该 CLI 子命令已存在，`bin/omo-sci.ts:99` 的 `case "start"` 内部会调用 `createInterview()`/`getNextPrompt()` 并返回开场提示文本），把输出结果作为对用户说的第一句话；`/sci-doctor` 改为"命令报错时建议用户自行运行"，不再要求 Dubin 自己执行
+
+### 验证
+
+- `bun run typecheck` ✅
+
 ## v0.2.0 (2026-07-08)
 
 Agent 提示词质量优化 + 主张验证工具化，源于对 Claude Science 的调研和对 9 个 agent 提示词的系统性审读。
