@@ -9,7 +9,12 @@ import { describe, it, expect, afterEach } from 'bun:test';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { passportAdvanceStage, passportRecordGate, passportStatus } from '../src/plugin-tools';
+import {
+  passportAdvanceStage,
+  passportRecordClaim,
+  passportRecordGate,
+  passportStatus,
+} from '../src/plugin-tools';
 import { loadPassport, updateStageState } from '../src/state/passport';
 
 function mockContext(directory: string, agent = 'dubin') {
@@ -78,11 +83,71 @@ describe('plugin-tools', () => {
       ).rejects.toThrow(/前置条件未满足/);
     });
 
-    it('阶段2完成后可以记录闸门I通过，写入报告路径', async () => {
+    it('claim_evidence_map 为空时拒绝记录闸门I通过（不能只凭口头说验证过了）', async () => {
       tmpDir = mkdtempSync(join(tmpdir(), 'omo-sci-tool-'));
       updateStageState(tmpDir, 'stage-0-intake', { status: 'completed' });
       updateStageState(tmpDir, 'stage-1-design', { status: 'completed' });
       updateStageState(tmpDir, 'stage-2-analysis', { status: 'completed' });
+
+      await expect(
+        passportRecordGate.execute(
+          { gate: 'gate-i', status: 'passed', report_path: 'reports/gate-i.md', claim_sample_rate: 0.3 },
+          mockContext(tmpDir, 'ebmer'),
+        ),
+      ).rejects.toThrow(/claim_evidence_map 为空/);
+    });
+
+    it('存在 missing/conflict 主张时拒绝记录闸门I通过', async () => {
+      tmpDir = mkdtempSync(join(tmpdir(), 'omo-sci-tool-'));
+      updateStageState(tmpDir, 'stage-0-intake', { status: 'completed' });
+      updateStageState(tmpDir, 'stage-1-design', { status: 'completed' });
+      updateStageState(tmpDir, 'stage-2-analysis', { status: 'completed' });
+
+      await passportRecordClaim.execute(
+        {
+          claim_id: 'C1',
+          claim_text: '瑞马唑仑组谵妄发生率更低',
+          evidence_type: 'analysis_result',
+          evidence_ids: ['Table2-row1'],
+          verification_status: 'verified',
+        },
+        mockContext(tmpDir, 'ebmer'),
+      );
+      await passportRecordClaim.execute(
+        {
+          claim_id: 'C2',
+          claim_text: '既往研究显示同样趋势',
+          evidence_type: 'literature',
+          evidence_ids: ['PMID_UNKNOWN'],
+          verification_status: 'missing',
+        },
+        mockContext(tmpDir, 'ebmer'),
+      );
+
+      await expect(
+        passportRecordGate.execute(
+          { gate: 'gate-i', status: 'passed', report_path: 'reports/gate-i.md', claim_sample_rate: 0.3 },
+          mockContext(tmpDir, 'ebmer'),
+        ),
+      ).rejects.toThrow(/C2/);
+    });
+
+    it('主张全部验证通过后，可以记录闸门I通过，写入报告路径', async () => {
+      tmpDir = mkdtempSync(join(tmpdir(), 'omo-sci-tool-'));
+      updateStageState(tmpDir, 'stage-0-intake', { status: 'completed' });
+      updateStageState(tmpDir, 'stage-1-design', { status: 'completed' });
+      updateStageState(tmpDir, 'stage-2-analysis', { status: 'completed' });
+
+      await passportRecordClaim.execute(
+        {
+          claim_id: 'C1',
+          claim_text: '瑞马唑仑组谵妄发生率更低',
+          evidence_type: 'analysis_result',
+          evidence_ids: ['Table2-row1'],
+          verification_status: 'verified',
+        },
+        mockContext(tmpDir, 'ebmer'),
+      );
 
       const result = await passportRecordGate.execute(
         { gate: 'gate-i', status: 'passed', report_path: 'reports/gate-i.md', claim_sample_rate: 0.3 },
@@ -96,7 +161,7 @@ describe('plugin-tools', () => {
       expect(passport.integrity_gate_1?.claim_sample_rate).toBe(0.3);
     });
 
-    it('记录闸门I失败后，闸门I 状态不是 passed，后续阶段仍会被拒绝', async () => {
+    it('记录闸门I失败时不检查 claim_evidence_map，失败后续阶段仍会被拒绝', async () => {
       tmpDir = mkdtempSync(join(tmpdir(), 'omo-sci-tool-'));
       updateStageState(tmpDir, 'stage-0-intake', { status: 'completed' });
       updateStageState(tmpDir, 'stage-1-design', { status: 'completed' });
@@ -117,6 +182,56 @@ describe('plugin-tools', () => {
           mockContext(tmpDir),
         ),
       ).rejects.toThrow(/闸门I/);
+    });
+  });
+
+  describe('passport-record-claim', () => {
+    it('记录一条主张，写入 claim_evidence_map', async () => {
+      tmpDir = mkdtempSync(join(tmpdir(), 'omo-sci-tool-'));
+      const result = await passportRecordClaim.execute(
+        {
+          claim_id: 'PMID_12345678',
+          claim_text: '瑞马唑仑与丙泊酚谵妄发生率的既往研究',
+          evidence_type: 'literature',
+          evidence_ids: ['PMID_12345678'],
+          verification_status: 'verified',
+        },
+        mockContext(tmpDir, 'writer'),
+      );
+      expect(result).toContain('✅');
+
+      const passport = loadPassport(tmpDir);
+      expect(passport.claim_evidence_map.length).toBe(1);
+      expect(passport.claim_evidence_map[0].claim_id).toBe('PMID_12345678');
+      expect(passport.claim_evidence_map[0].evidence_type).toBe('literature');
+    });
+
+    it('用相同 claim_id 再次调用会更新而不是重复添加', async () => {
+      tmpDir = mkdtempSync(join(tmpdir(), 'omo-sci-tool-'));
+      await passportRecordClaim.execute(
+        {
+          claim_id: 'C1',
+          claim_text: '初次记录',
+          evidence_type: 'analysis_result',
+          evidence_ids: ['x'],
+          verification_status: 'missing',
+        },
+        mockContext(tmpDir, 'ebmer'),
+      );
+      await passportRecordClaim.execute(
+        {
+          claim_id: 'C1',
+          claim_text: '补充验证后更新',
+          evidence_type: 'analysis_result',
+          evidence_ids: ['Table1-row3'],
+          verification_status: 'verified',
+        },
+        mockContext(tmpDir, 'ebmer'),
+      );
+
+      const passport = loadPassport(tmpDir);
+      expect(passport.claim_evidence_map.length).toBe(1);
+      expect(passport.claim_evidence_map[0].verification_status).toBe('verified');
     });
   });
 

@@ -147,11 +147,13 @@ Phase 2 输出开头必须包含偏离度总结：
 
 约束：验证时，你必须引用具体的分析结果行或文献 ID。不能笼统说"前面讨论过了"。
 
+**每验证一条主张，当场调用 `passport-record-claim` 记录**（不要等全部验证完再一次性回忆着补录，容易漏）：`claim_id`（给这条主张起一个短标识，如 "C1"）、`claim_text`（主张原文）、`manuscript_location`（在稿件中的位置）、`evidence_type`（通常是 analysis_result 或 literature）、`evidence_ids`（支撑证据，如具体的表格行号、PMID）、`verification_status`（verified/missing/conflict/not_applicable）。这是结构化记录，Markdown 报告里的叙述是给人读的，这个工具调用是给流程校验用的，两者都要做，不能只做一个。
+
 ## 记录闸门结果
 
 如果这次审查是闸门 I 或闸门 II（不是阶段 3b 的独立审稿），把 Markdown 报告写入文件后，调用 `passport-record-gate` 工具记录结果：`gate`（gate-i/gate-ii）、`status`（passed/failed）、`report_path`（报告文件路径）、`claim_sample_rate`（闸门 I 用 0.3，闸门 II 用 1.0）。
 
-这个工具会校验前置条件（比如闸门 I 要求阶段 2 已完成），不满足时会报错——出现报错交给 Dubin 处理，不要绕过或者只在对话里口头说"闸门通过了"却不调用工具。没有工具调用记录的闸门结果，不算数。
+这个工具会校验前置条件（比如闸门 I 要求阶段 2 已完成），并且会检查你有没有真的调用过 `passport-record-claim`——如果 claim_evidence_map 里一条记录都没有，或者存在 missing/conflict 状态的主张，调用 `status: passed` 会被直接拒绝。出现报错交给 Dubin 处理，不要绕过或者只在对话里口头说"闸门通过了"却不调用工具。没有工具调用记录的闸门结果，不算数。
 
 ## 约束
 

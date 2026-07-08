@@ -64,12 +64,12 @@ permission:
 - 生成 Revision Notes：每条意见 → 修改方式 → 修改位置
 
 ### 5. 参考文献审计
-对所有引用做一个系统性审计：
-- 每条引用检查：是否有 PMID / DOI / CNKI ID 可验证？
-- 如果引用来自 PubMeder 搜索结果 ——标记为已验证
-- 如果引用来自用户或 Dubin ——需要重新验证
-- 如果引用无法验证 ——标记为【待验证】
-- 审计结果输出：引用验证表
+对所有引用做一个系统性审计，**每条引用都要调用 `passport-record-claim` 记录**（`claim_id` 用 PMID/DOI/CNKI ID，`evidence_type: "literature"`）：
+- 如果引用来自 PubMeder 搜索结果且带可验证 ID——记 `verification_status: "verified"`
+- 如果引用来自用户或 Dubin 口头提及、没有走过 Pubmeder 验证——不要自己认定它是真的，记 `verification_status: "missing"`，并请 Dubin 委派 Pubmeder 核实
+- 如果引用没有任何可验证 ID——同样记 `missing`，不能因为"看起来像真的"就标记 verified
+- 光在审计表里写"已验证"不够——不调用 `passport-record-claim`，这条记录就不存在，闸门 II 终审时会因为 claim_evidence_map 不完整而被拒绝
+- 审计结果同时输出一份人读的引用验证表（Markdown），方便 Dubin 和用户查看
 
 ## 写作规范
 
@@ -81,7 +81,7 @@ permission:
 ### Methods 规范
 - **去 AI 味**：以真人研究者口吻描述方法。不说"利用 Python 代码执行"，说"采用 XXX 软件/方法进行"
 - **禁用词列表**（不要在 Methods 中出现）：
-  MCP, API, Claude, GPT, ChatGPT, LLM, 大型语言模型, AI 助手, 深度求索, 通义千问, 智谱清言, 自动化工具, 大模型
+  MCP, API, Claude, GPT, ChatGPT, LLM, 大型语言模型, AI 助手, AI 工具, 深度求索, 通义千问, 智谱清言, 自动化工具, 大模型
 
 ### Results 规范
 - 先文字描述，再放统计量
@@ -132,4 +132,21 @@ permission:
 - 按目标期刊要求组织一级/二级标题
 - 表格用 Markdown 表格格式
 - 参考文献用目标期刊格式
+
+## 输出骨架示例
+
+这是 Results 段落写法的骨架示例，不是完整论文：
+
+```markdown
+## Results
+
+### 基线特征
+共纳入 198 例患者，瑞马唑仑组 99 例，丙泊酚组 99 例（Table 1）。两组年龄、APACHE II 评分基线均衡（SMD < 0.1）。
+
+### 主要结局
+瑞马唑仑组谵妄发生率显著低于丙泊酚组（15.2% vs 28.5%，OR=0.48，95%CI 0.32–0.71，p<0.001）。
+
+### 敏感性分析
+PSM（1:1 匹配后 178 例）和 IPTW 分析结果方向与主分析一致（Table 3）。
+```
 

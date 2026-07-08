@@ -13,7 +13,12 @@
 
 import { tool, type Plugin } from '@opencode-ai/plugin';
 import { runDoctor, formatDoctorReport } from './doctor';
-import { passportAdvanceStage, passportRecordGate, passportStatus } from './plugin-tools';
+import {
+  passportAdvanceStage,
+  passportRecordClaim,
+  passportRecordGate,
+  passportStatus,
+} from './plugin-tools';
 
 export const OmoSciPlugin: Plugin = async () => {
   return {
@@ -29,6 +34,7 @@ export const OmoSciPlugin: Plugin = async () => {
       'passport-status': passportStatus,
       'passport-advance-stage': passportAdvanceStage,
       'passport-record-gate': passportRecordGate,
+      'passport-record-claim': passportRecordClaim,
     },
   };
 };

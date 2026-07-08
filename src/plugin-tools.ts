@@ -21,7 +21,14 @@ import {
   updateStageState,
   validatePassportPreconditions,
 } from './state/passport';
-import type { AgentName, GateReport, MaterialPassport, StageId, StageState } from './types';
+import type {
+  AgentName,
+  ClaimEvidenceMap,
+  GateReport,
+  MaterialPassport,
+  StageId,
+  StageState,
+} from './types';
 
 const STAGE_IDS = [
   'stage-0-intake',
@@ -33,6 +40,35 @@ const STAGE_IDS = [
 ] as const;
 
 const GATE_IDS = ['gate-i', 'gate-ii'] as const;
+
+const EVIDENCE_TYPES = ['analysis_result', 'literature', 'guideline', 'journal_instruction'] as const;
+const VERIFICATION_STATUSES = ['verified', 'missing', 'conflict', 'not_applicable'] as const;
+
+/**
+ * 检查 claim_evidence_map 是否健康，可以支撑一次闸门"通过"的记录。
+ *
+ * 规则：
+ * - 至少要有一条记录（闸门要求抽样/全量验证关键主张，一条都没记录
+ *   说明验证工作根本没通过工具做，不能只凭 EBMer 口头说"都验证过了"）
+ * - 不能有任何 verification_status 为 missing/conflict 的记录
+ *   （EBMer 发现了问题却还想把闸门记成 passed，这里会拦下来）
+ */
+function checkClaimEvidenceHealth(passport: MaterialPassport): string[] {
+  const issues: string[] = [];
+  if (passport.claim_evidence_map.length === 0) {
+    issues.push('claim_evidence_map 为空——没有通过 passport-record-claim 记录任何主张验证结果');
+    return issues;
+  }
+  const bad = passport.claim_evidence_map.filter(
+    (c) => c.verification_status === 'missing' || c.verification_status === 'conflict',
+  );
+  if (bad.length > 0) {
+    issues.push(
+      `存在 ${bad.length} 条未通过验证的主张：${bad.map((c) => `${c.claim_id}(${c.verification_status})`).join(', ')}`,
+    );
+  }
+  return issues;
+}
 
 export const passportStatus = tool({
   description:
@@ -129,9 +165,47 @@ export const passportAdvanceStage = tool({
   },
 });
 
+export const passportRecordClaim = tool({
+  description:
+    '记录一条主张（论文中的关键陈述、或一条参考文献引用）的证据验证结果，写入 Material Passport 的 claim_evidence_map。EBMer 做 12 模式检查/抽样验证主张时、Writer 做参考文献审计时都应该调用——参考文献审计用 evidence_type: "literature"，claim_id 可以用 PMID/DOI 之类的引用标识。重复调用同一个 claim_id 会更新而不是重复添加。',
+  args: {
+    claim_id: tool.schema.string().min(1).describe('主张的唯一标识，如 "C1" 或引用的 PMID/DOI'),
+    claim_text: tool.schema.string().min(1).describe('主张的原文或引用文本'),
+    manuscript_location: tool.schema.string().optional().describe('在稿件中的位置，如 "Discussion 第 2 段"'),
+    evidence_type: tool.schema.enum(EVIDENCE_TYPES),
+    evidence_ids: tool.schema.array(tool.schema.string()).describe('支撑证据的 ID 列表，如分析结果行号、PMID、指南编号'),
+    verification_status: tool.schema.enum(VERIFICATION_STATUSES),
+  },
+  async execute(args, context) {
+    const dir = context.directory;
+    const passport = loadPassport(dir);
+
+    const entry: ClaimEvidenceMap = {
+      claim_id: args.claim_id,
+      claim_text: args.claim_text,
+      manuscript_location: args.manuscript_location,
+      evidence_type: args.evidence_type,
+      evidence_ids: args.evidence_ids,
+      verification_status: args.verification_status,
+    };
+
+    const existingIndex = passport.claim_evidence_map.findIndex((c) => c.claim_id === args.claim_id);
+    if (existingIndex >= 0) {
+      passport.claim_evidence_map[existingIndex] = entry;
+    } else {
+      passport.claim_evidence_map.push(entry);
+    }
+
+    savePassport(dir, passport);
+
+    const total = passport.claim_evidence_map.length;
+    return `✅ 已记录主张 "${args.claim_id}"（${args.verification_status}）。当前 claim_evidence_map 共 ${total} 条记录。`;
+  },
+});
+
 export const passportRecordGate = tool({
   description:
-    '记录完整性闸门（闸门I/闸门II）的检查结果。会先校验是否满足进入该闸门的前置条件，不满足时拒绝执行。闸门记录为 failed 时，依赖该闸门通过的后续阶段（如论文撰写、投稿）将继续被 passport-advance-stage 拒绝，直到重新检查通过。',
+    '记录完整性闸门（闸门I/闸门II）的检查结果。会先校验是否满足进入该闸门的前置条件，不满足时拒绝执行。记录 passed 时还会检查 claim_evidence_map：必须至少有一条记录、且不能有 missing/conflict 状态的主张，否则拒绝——不能只凭口头说"都验证过了"就把闸门记成通过。闸门记录为 failed 时，依赖该闸门通过的后续阶段（如论文撰写、投稿）将继续被 passport-advance-stage 拒绝，直到重新检查通过。',
   args: {
     gate: tool.schema.enum(GATE_IDS),
     status: tool.schema.enum(['passed', 'failed']),
@@ -148,6 +222,15 @@ export const passportRecordGate = tool({
     const missing = validatePassportPreconditions(passport, gate);
     if (missing.length > 0) {
       throw new Error(`无法记录 "${args.gate}"，前置条件未满足：\n- ${missing.join('\n- ')}`);
+    }
+
+    if (args.status === 'passed') {
+      const claimIssues = checkClaimEvidenceHealth(passport);
+      if (claimIssues.length > 0) {
+        throw new Error(
+          `无法把 "${args.gate}" 记录为 passed，主张验证不完整：\n- ${claimIssues.join('\n- ')}\n请先用 passport-record-claim 记录主张验证结果。`,
+        );
+      }
     }
 
     updateStageState(dir, gate, {

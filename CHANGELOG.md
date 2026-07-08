@@ -1,5 +1,31 @@
 # Changelog
 
+## v0.2.0 (2026-07-08)
+
+Agent 提示词质量优化 + 主张验证工具化，源于对 Claude Science 的调研和对 9 个 agent 提示词的系统性审读。
+
+### 提示词修复（零代码风险）
+
+- 新增统一的文件产物路径约定（`Study_Blueprint.md`/`SAP.md`/`Review_Reports/` 等固定根目录文件名），写入 Dubin 及全部子 agent 提示词，解决"文件写哪、下一步去哪找"的隐患
+- 修正 Dubin 提示词里的"后台并行搜索"表述——委派子 agent 是阻塞等待，不是真正的后台并发
+- 修正 Wisdom 系统描述，对齐真实实现：`wisdom.ts`（独立 markdown 文件）已在 v0.1.19 删除，Wisdom 记录实际走 Material Passport 的 `wisdom_collected` 结构化数组
+- Submitter/Archimedes 增加期刊数据反幻觉硬约束：影响因子/接受率/审稿周期必须来自当次真实检索并标注时间，查不到就写"请自行核实"，不允许凭记忆给数值；Archimedes 只给期刊档次方向，具体推荐交给 Submitter
+- Archimedes/IRBer/Writer/Submitter 补充输出骨架示例，提升国产模型的格式稳定性
+- 修正 Polisher 的句长量化标准（中文按字数、英文按词数，此前"35 个词"对中文语义不明）
+- 新增 `src/agents/shared.ts` 收拢禁用词列表为单一数据源——此前 Writer 和 Polisher 各抄一份，已经出现过一个词的差异
+
+### 主张验证工具化
+
+- 新增 `passport-record-claim` 工具：记录一条主张（论文关键陈述或参考文献引用）的证据验证结果，写入 Material Passport 的 `claim_evidence_map`。EBMer 验证主张、Writer 审计参考文献时都需要调用，参考文献审计复用 `evidence_type: "literature"`
+- `passport-record-gate` 记录 `passed` 时新增校验：`claim_evidence_map` 不能为空、不能有 `missing`/`conflict` 状态的主张，否则拒绝——此前"30%/100% 关键主张验证"完全依赖 EBMer 自觉，现在没有真实记录就无法把闸门标记为通过
+- EBMer/Writer 提示词同步更新为调用 `passport-record-claim`，而不是只在 Markdown 报告里叙述"已验证"
+- 新增测试覆盖：claim_evidence_map 为空/存在未验证主张时拒绝记录闸门通过、`passport-record-claim` 的记录与去重更新行为
+
+### 验证
+
+- `bun run typecheck` ✅、`bun test` ✅ 187/187、`bun pm pack --dry-run` ✅
+- 尚未验收：真实 OpenCode TUI 会话中 EBMer/Writer 是否会按提示词实际调用 `passport-record-claim`
+
 ## v0.1.19 (2026-07-07，第三部分)
 
 架构通电：把 Material Passport 的阶段推进/闸门检查从"提示词约定"升级为"工具调用强制"，这是本轮重构最终交付的产品价值——此前 AI 只是被提示词要求推进阶段、记录闸门结果，完全可能走神跳过而不被发现；现在这些操作是真正会失败的工具调用。
