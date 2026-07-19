@@ -6,7 +6,7 @@ agent: dubin
 
 请执行以下命令并展示结果：
 ```bash
-bun run bin/omo-sci.ts usage
+omo-sci usage
 ```
 
 展示用量进度条、已用 Token、配额和重置日期。

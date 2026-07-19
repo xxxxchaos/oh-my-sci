@@ -48,10 +48,10 @@ describe('registry', () => {
       expect(AGENT_REGISTRY.ebmer.category).toBe('methodical-review');
     });
 
-    it('只读 agent（irber/ebmer/polisher）不含 edit/bash 权限', () => {
+    it('审稿 agent 只能写报告，明确禁用 bash', () => {
       for (const name of ['irber', 'ebmer', 'polisher'] as AgentName[]) {
-        expect(AGENT_REGISTRY[name].permissions.edit).toBeUndefined();
-        expect(AGENT_REGISTRY[name].permissions.bash).toBeUndefined();
+        expect(AGENT_REGISTRY[name].permissions.edit).toBe('allow');
+        expect(AGENT_REGISTRY[name].permissions.bash).toBe('deny');
       }
     });
 
@@ -89,5 +89,27 @@ describe('registry', () => {
         expect(actual).toBe(expected);
       });
     }
+  });
+
+  describe('真实 TUI 回归约束', () => {
+    it('Pubmeder 快搜有明确的时间、工具和引用交接预算', async () => {
+      const { PROMPT } = await import('../src/agents/pubmeder');
+      expect(PROMPT).toContain('硬上限 3 分钟');
+      expect(PROMPT).toContain('最多 2 次 PubMed 搜索');
+      expect(PROMPT).toContain('不得调用全文获取工具');
+      expect(PROMPT).toContain('QUICK_SEARCH_HANDOFF');
+      expect(PROMPT).toContain('同一 ID 如果对应不同标题');
+    });
+
+    it('设计与审查 agent 锁定时间依赖治疗和引用身份检查', async () => {
+      const [{ PROMPT: archimedes }, { PROMPT: irber }] = await Promise.all([
+        import('../src/agents/archimedes'),
+        import('../src/agents/irber'),
+      ]);
+      expect(archimedes).toContain('不能直接当普通基线连续变量放进 Cox/RCS');
+      expect(archimedes).toContain('一个主 estimand 和一个主模型');
+      expect(irber).toContain('同一个 PMID/DOI/NCT 只能对应一个标题');
+      expect(irber).toContain('不得给无条件 PASS');
+    });
   });
 });

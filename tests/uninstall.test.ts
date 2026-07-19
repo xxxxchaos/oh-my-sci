@@ -25,8 +25,11 @@ describe("uninstall", () => {
 
     expect(existsSync(join(configDir, "omo-sci.jsonc"))).toBe(false);
     expect(existsSync(join(projectDir, "opencode.json"))).toBe(false);
+    expect(existsSync(join(projectDir, '.opencode', 'plugins', 'omo-sci.js'))).toBe(false);
     expect(existsSync(join(projectDir, ".opencode", "agents", "dubin.md"))).toBe(false);
     expect(existsSync(join(projectDir, ".opencode", "commands", "sci-start.md"))).toBe(false);
+    expect(existsSync(join(projectDir, ".opencode", "commands", "sci-agent.md"))).toBe(false);
+    expect(existsSync(join(projectDir, ".opencode", "omo-sci-install.json"))).toBe(false);
     expect(result.removed.length).toBeGreaterThan(0);
   });
 

@@ -122,6 +122,7 @@ const VALID_EVIDENCE_TYPES = ['analysis_result', 'literature', 'guideline', 'jou
  * 合法的验证状态值
  */
 const VALID_VERIFICATION_STATUSES = ['verified', 'missing', 'conflict', 'not_applicable'];
+const VALID_STAGE_IDS = Object.keys(STAGE_TO_KEY);
 
 /**
  * 6 个流水线阶段 key
@@ -166,8 +167,37 @@ export function validatePassportSchema(data: unknown): { valid: boolean; errors:
   else {
     const pipe = p.pipeline as Record<string, unknown>;
     if (!pipe.current_stage) errors.push('missing pipeline.current_stage');
+    else if (!VALID_STAGE_IDS.includes(pipe.current_stage as string)) {
+      errors.push(`pipeline.current_stage must be one of: ${VALID_STAGE_IDS.join(', ')}`);
+    }
   }
   if (!Array.isArray(p.signoff_records)) errors.push('signoff_records must be an array');
+  else {
+    for (let i = 0; i < p.signoff_records.length; i++) {
+      const item = (p.signoff_records as unknown[])[i];
+      if (typeof item !== 'object' || item === null) {
+        errors.push(`signoff_records[${i}] must be an object`);
+        continue;
+      }
+      const record = item as Record<string, unknown>;
+      if (!VALID_STAGE_IDS.includes(record.stage as string)) {
+        errors.push(`signoff_records[${i}].stage is invalid`);
+      }
+      if (typeof record.signed_at !== 'string' || !record.signed_at) {
+        errors.push(`signoff_records[${i}].signed_at must be a non-empty string`);
+      }
+      if (typeof record.summary !== 'string' || !record.summary) {
+        errors.push(`signoff_records[${i}].summary must be a non-empty string`);
+      }
+      if (typeof record.user_confirmation !== 'string' || !record.user_confirmation) {
+        errors.push(`signoff_records[${i}].user_confirmation must be a non-empty string`);
+      }
+      if (!Array.isArray(record.risks_acknowledged)
+        || record.risks_acknowledged.some(risk => typeof risk !== 'string')) {
+        errors.push(`signoff_records[${i}].risks_acknowledged must be a string array`);
+      }
+    }
+  }
   if (!Array.isArray(p.review_sessions)) errors.push('review_sessions must be an array');
 
   // ── data_provenance 校验 ──
@@ -221,6 +251,9 @@ export function validatePassportSchema(data: unknown): { valid: boolean; errors:
       }
       if (g.report_path !== undefined && typeof g.report_path !== 'string') {
         errors.push(`${gateKey}.report_path must be a string`);
+      }
+      if (g.report_checksum !== undefined && typeof g.report_checksum !== 'string') {
+        errors.push(`${gateKey}.report_checksum must be a string`);
       }
     }
   }
@@ -448,6 +481,8 @@ function stableStringify(obj: unknown): string {
  * 递归按 key 排序序列化，保证相同内容的 stage 产生相同 hash。
  */
 export function computeStageHash(stage: StageState): string {
-  const canonical = stableStringify(stage);
+  // hash 字段本身不能参与哈希，否则每次重新计算都会改变结果。
+  const { hash: _previousHash, ...hashable } = stage;
+  const canonical = stableStringify(hashable);
   return createHash('sha256').update(canonical, 'utf-8').digest('hex');
 }

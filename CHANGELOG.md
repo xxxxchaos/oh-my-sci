@@ -1,5 +1,75 @@
 # Changelog
 
+## v0.2.2-local.202607192234 (2026-07-19)
+
+基于固定 VV-ECMO 案例完成首轮真实 OpenCode TUI Stage 0/Stage 1 验收。本版本仍是本地候选版，尚未 push 或发布 Release。
+
+### OpenCode 运行时与 Passport
+
+- 修复全局 Bun 链接包无法被 OpenCode 的 npm 插件缓存解析，导致 Passport 工具没有注册的问题：`omo-sci install` 现在把自包含运行时 bundle 写入项目 `.opencode/plugins/omo-sci.js`
+- 安装时移除旧 `opencode.json` 中失效的 `plugin: ["omo-sci"]` 声明；新项目不再为 omo-sci 创建 `opencode.json`，保留用户已有配置和其他插件
+- `doctor` 独立校验模板、CLI 和运行时插件版本；缺少 runtime plugin 不再误报安装可用
+- 新增 `passport-record-wisdom`；所有 Passport 写工具先做完整 schema 校验，畸形签核记录会停止写入
+- 运行时 `tool.execute.before` 拦截 edit/write/patch/bash 直接操作 `.omo-sci/passport.json`，只能使用 `passport-*` 工具修改审计状态
+- 卸载同步清理生成的运行时插件；安装完成提示明确插件路径并提醒重启已有 OpenCode 会话
+
+### Agent 行为与科学性
+
+- Pubmeder Stage 0 快搜增加 90 秒目标、3 分钟硬上限、最多 2 次 PubMed + 1 次可选源、禁止取全文/写文件，以及结构化 `QUICK_SEARCH_HANDOFF`
+- Dubin 汇总快搜时必须保留 3-5 个 PMID/DOI/NCT，并通过专用工具记录 wisdom，禁止直接编辑 Passport
+- Archimedes 增加时间依赖治疗设计约束：post-baseline 启动时间不得作为普通基线 Cox/RCS 暴露；明确 estimand、grace period、CCW 方差和事件数降级规则
+- IRBer 增加引用身份一致性、时间依赖治疗、复合终点、模型复杂度和审查结论一致性检查
+- IRBer、EBMer、Polisher 明确为“只写自身审查报告”，允许写报告但禁用 bash；注册表回归测试锁定权限和关键提示词
+
+### 长期验收
+
+- 新增 `docs/testing/real-tui-acceptance.md`，建立 L1 单元/类型、L2 安装/运行时、L3 固定 TUI、L4 探索性实测四层闭环
+- 新增固定 VV-ECMO 基准案例和本轮原始失败记录，明确 P0/P1/P2、指标、目录命名和“模型行为至少复测两次”规则
+- 真实复验已确认：`passport-status`、`passport-advance-stage` 在 OpenCode 中实际注册并执行；直接编辑 Passport 被 hook 拒绝；签核字段、风险数组和 wisdom 写入有效 schema
+
+### 验证
+
+- `bun run typecheck`：通过
+- `bun test`：205/205 通过
+- `bun pm pack --dry-run`：通过
+- `omo-sci install --project-dir ~/opencode/medical` 后 `doctor` 14/14 通过；子目录新 OpenCode 会话完成 Passport 工具和直接编辑拦截冒烟
+- 待 L3 行为复测：Stage 0 快搜预算和 Stage 1 方法学修订属于模型行为，需用同一固定案例各再跑两次后才能宣告稳定关闭
+
+## v0.2.2-local.202607182252 (2026-07-18)
+
+根据 v0.2.1 首次真实 OpenCode TUI 验收结果，修复混合安装、Passport 未生效和产物虚报问题。本版本仅作为本地验收版，尚未发布 GitHub Release。
+
+### 安装与启动可靠性
+
+- 5 个斜杠命令模板统一调用全局 `omo-sci` CLI，不再依赖普通项目中不存在的 `bin/omo-sci.ts`
+- 安装时写入 `.opencode/omo-sci-install.json`，记录模板版本、安装根目录和 schema；`doctor` / `status` 会明确提示当前模板是本地安装、继承父目录、旧版或与 CLI 版本不一致
+- `/sci-start` 必须先成功执行 `omo-sci start` 才能开始访谈；干净项目启动会真实创建 `.omo-sci/passport.json` 和 `boulder.json`
+- 卸载同步删除安装 manifest 和全部 5 个命令模板；补上此前遗漏的 `sci-agent.md`
+
+### Passport 与产物真实性
+
+- 新增 `passport-record-artifact`：只登记项目内真实、非空普通文件，并计算 SHA-256；文件缺失、越界、为空或登记后被修改时拒绝阶段推进
+- 为 Stage 1-5 定义必需产物清单。Stage 1 现在必须真实存在并登记研究蓝图、文献矩阵、搜索计划和 IRBer 审查报告
+- 阶段推进必须保存用户确认和已知风险；同一句明确确认不会重复索要
+- 修正阶段 hash 把旧 hash 自身再次参与计算造成的不稳定问题
+- 闸门报告必须真实存在、非空且位于项目内，并保存 checksum
+
+### 闸门状态机与 Agent 行为
+
+- 修复 `Stage 2 → Gate I → Stage 3` / `Stage 3 → Gate II → Stage 4` 的循环依赖：Gate 现在是可正式进入的流水线节点，只有闸门工具记录 passed 后才能进入下一普通阶段
+- `passport-record-gate` 只允许在当前流程已进入对应 Gate 时调用；Gate 到下一阶段的自动迁移不会伪造第二次用户签核
+- Dubin 在宣布子 agent 完成前必须 Read 真实文件并调用产物登记工具；Pubmeder 深搜必须落盘 `Literature_Matrix.md` 和 `Search_Plan.md`
+- 修正 Gate I “读正文”的时序矛盾：写作前只审 SAP、分析摘要、表图和诊断结果，Gate II 才审完整正文
+- Pubmeder 快搜结果保留 3-5 个可核查 ID 和覆盖限制，并降低未经系统检索的“研究空白”断言强度
+
+### 验证
+
+- `bun test`：200/200 通过
+- `bun run typecheck`：通过
+- `bun pm pack --dry-run`：通过（59 个文件）
+- 干净临时目录完成全局 CLI 版本、安装、启动、Passport/Boulder 创建、状态、doctor 模板来源和卸载 manifest 清理冒烟
+- 待完成：在不继承旧 `.opencode` 的目录重新做一次真实 OpenCode TUI Stage 0 → Stage 1 验收
+
 ## v0.2.1 (2026-07-08)
 
 修复 `/sci-start` 启动即报错的 bug（实测反馈：v0.1.18 使用中发现，v0.2.0 仍未修复）。

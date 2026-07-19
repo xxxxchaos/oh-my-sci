@@ -234,7 +234,7 @@ function printInstallLocations(prefix: string, configPath: string, projectDirOpt
   console.log(`${prefix}:`);
   console.log(`  全局配置: ${configPath}`);
   console.log(`  项目目录: ${projectDir}`);
-  console.log(`  OpenCode 项目配置: ${path.join(projectDir, "opencode.json")}`);
+  console.log(`  OpenCode 运行时插件: ${path.join(projectDir, ".opencode", "plugins", "omo-sci.js")}`);
   console.log(`  命令目录: ${path.join(projectDir, ".opencode", "commands")}`);
   console.log(`  Agent 目录: ${path.join(projectDir, ".opencode", "agents")}`);
 }
@@ -246,6 +246,7 @@ function printNextCommands(): void {
   console.log(`     推荐优先配置 qwen-bailian / zhipu / kimi / minimax / deepseek 等自家 API 或 token plan；opencode-go 作为兜底。`);
   console.log(`  2. 检查各 agent 模型: ${CLI_RUN} agent`);
   console.log(`  3. 验证安装: ${CLI_RUN} doctor --models`);
+  console.log('  4. 若 OpenCode 已经打开，请退出后重新启动，让运行时插件生效。');
 }
 
 async function handleDoctor(args: string[]): Promise<void> {

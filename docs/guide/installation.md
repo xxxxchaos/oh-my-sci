@@ -26,6 +26,14 @@ export PATH="$HOME/.bun/bin:$PATH"
 omo-sci install
 ```
 
+安装器会写入 agent、斜杠命令和 OpenCode 运行时插件：
+
+- `.opencode/agents/*.md`
+- `.opencode/commands/*.md`
+- `.opencode/plugins/omo-sci.js`
+
+运行时插件是由当前 CLI 生成的自包含文件，不需要在 `opencode.json` 中声明 `"plugin": ["omo-sci"]`。如果 OpenCode 已经在运行，安装或升级后请退出并重新启动 OpenCode，让它重新扫描 `.opencode/plugins/`。
+
 安装时会先使用 `opencode-go` 作为兜底生成一套可运行配置，并输出“模型分配计划”表，明确每个 agent 实际写入 `.opencode/agents/*.md` 的 `model` 和 `model_fallback`。安装完成后，建议先运行 `omo-sci configure` 选择你自己的模型 provider，再运行 `omo-sci agent` 检查各 agent 分配。
 
 将来发布到 npm 后，也可以使用 `bunx omo-sci install`。
@@ -108,12 +116,12 @@ omo-sci uninstall
 omo-sci uninstall --yes
 ```
 
-默认会删除当前项目中 omo-sci 生成的 agent/command、从 `opencode.json` 移除 `omo-sci` 插件项，并删除全局配置 `~/.config/opencode/omo-sci.jsonc`。Dubin 进化记忆目录默认保留；如需同时删除，运行 `omo-sci uninstall --profile`。
+默认会删除当前项目中 omo-sci 生成的 agent、command、安装清单和运行时插件，同时清理旧版 `opencode.json` 中的 `omo-sci` 插件项，并删除全局配置 `~/.config/opencode/omo-sci.jsonc`。Dubin 进化记忆目录默认保留；如需同时删除，运行 `omo-sci uninstall --profile`。
 
 ## 常见问题
 
 **Q: 安装后 agent 不显示？**
-A: 确保 opencode.json 中包含 `"plugin": ["omo-sci"]`。重启 OpenCode 会话。
+A: 在项目目录运行 `omo-sci doctor`，确认模板和 `.opencode/plugins/omo-sci.js` 与 CLI 版本一致；然后完全退出并重启 OpenCode。不要手工向 `opencode.json` 添加 `"plugin": ["omo-sci"]`，该写法只适用于 OpenCode 能从包源解析的 npm 插件。
 
 **Q: MCP 工具找不到？**
 A: 运行 `omo-sci doctor` 检查环境。PubMed MCP（默认工具名 `unified_search`）是 Pubmeder 的核心依赖；CNKI 和 Consensus 是可选增强源，没装也可以继续用 PubMed 核心检索。

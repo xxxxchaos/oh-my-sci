@@ -6,5 +6,5 @@ agent: dubin
 
 请执行以下命令并展示结果：
 ```bash
-bun run bin/omo-sci.ts status
+omo-sci status
 ```

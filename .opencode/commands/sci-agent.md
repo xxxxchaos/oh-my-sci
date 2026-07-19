@@ -9,12 +9,12 @@ agent: dubin
 
 **查看 agent 模型分配：**
 ```bash
-bun run bin/omo-sci.ts agent
+omo-sci agent
 ```
 
 **查看可用 provider：**
 ```bash
-bun run bin/omo-sci.ts agent providers
+omo-sci agent providers
 ```
 
 用中文向用户解释结果，特别是：
@@ -24,15 +24,15 @@ bun run bin/omo-sci.ts agent providers
 
 **切换单个 agent 的模型：**
 ```bash
-bun run bin/omo-sci.ts agent set dubin opencode-go/deepseek-v4-pro
+omo-sci agent set dubin opencode-go/deepseek-v4-pro
 ```
 
 **将所有 agent 切换为同一模型：**
 ```bash
-bun run bin/omo-sci.ts agent set all opencode-go/deepseek-v4-pro
+omo-sci agent set all opencode-go/deepseek-v4-pro
 ```
 
 **恢复为默认分配（按分类路由）：**
 ```bash
-bun run bin/omo-sci.ts agent reset
+omo-sci agent reset
 ```

@@ -6,7 +6,7 @@ agent: dubin
 
 请执行以下命令并展示结果：
 ```bash
-bun run bin/omo-sci.ts doctor
+omo-sci doctor
 ```
 
 用中文解释每项检查结果的含义，给出修复建议（如有错误或警告）。

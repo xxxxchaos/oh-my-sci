@@ -229,19 +229,20 @@ describe("install", () => {
 
     const doctorCmdPath = join(tmpDir, ".opencode", "commands", "sci-doctor.md");
     const dubinAgentPath = join(tmpDir, ".opencode", "agents", "dubin.md");
-    const opencodeJsonPath = join(tmpDir, "opencode.json");
+    const runtimePluginPath = join(tmpDir, ".opencode", "plugins", "omo-sci.js");
 
     const doctorCmd = Bun.file(doctorCmdPath);
     const dubinAgent = Bun.file(dubinAgentPath);
-    const opencodeJson = Bun.file(opencodeJsonPath);
+    const runtimePlugin = Bun.file(runtimePluginPath);
 
     expect(await doctorCmd.exists()).toBe(true);
     expect(await dubinAgent.exists()).toBe(true);
-    expect(await opencodeJson.exists()).toBe(true);
+    expect(await runtimePlugin.exists()).toBe(true);
 
-    // Verify opencode.json content
-    const jsonContent = await opencodeJson.text();
-    expect(jsonContent).toContain('"omo-sci"');
+    const runtimeContent = await runtimePlugin.text();
+    expect(runtimeContent).toContain('omo-sci-runtime-plugin');
+    expect(runtimeContent).toContain('OmoSciRuntimePlugin');
+    expect(await Bun.file(join(tmpDir, 'opencode.json')).exists()).toBe(false);
   });
 
   it("安装时合并已有 opencode.json，不覆盖其他插件和字段", async () => {
@@ -262,7 +263,7 @@ describe("install", () => {
     );
 
     const json = JSON.parse(await Bun.file(join(tmpDir, "opencode.json")).text());
-    expect(json.plugin).toEqual(["other-plugin", "omo-sci"]);
+    expect(json.plugin).toEqual(["other-plugin"]);
     expect(json.theme).toBe("dark");
   });
 
@@ -333,7 +334,7 @@ describe("install", () => {
     }
   });
 
-  it("fresh install 复制全部 4 个 command 文件", async () => {
+  it("fresh install 复制全部 5 个 command 文件，且命令只调用全局 CLI", async () => {
     tmpDir = mkdtempSync(join(tmpdir(), "omo-sci-test-"));
 
     await install(
@@ -346,12 +347,20 @@ describe("install", () => {
     );
 
     const cmdDir = join(tmpDir, ".opencode", "commands");
-    const cmdFiles = ["sci-start.md", "sci-status.md", "sci-usage.md", "sci-doctor.md"];
+    const cmdFiles = ["sci-start.md", "sci-status.md", "sci-usage.md", "sci-doctor.md", "sci-agent.md"];
     for (const f of cmdFiles) {
       const filePath = join(cmdDir, f);
       const exists = await Bun.file(filePath).exists();
       expect(exists).toBe(true);
+      const content = await Bun.file(filePath).text();
+      expect(content).not.toContain("bin/omo-sci.ts");
+      expect(content).not.toContain("createInterview()");
+      expect(content).not.toContain("getNextPrompt()");
     }
+
+    expect(await Bun.file(join(cmdDir, "sci-start.md")).text()).toContain("omo-sci start");
+    const manifest = await Bun.file(join(tmpDir, ".opencode", "omo-sci-install.json")).json();
+    expect(manifest.package_version).toBe("0.2.2-local.202607192234");
   });
 
   it("fresh install dubin.md 不是短版 stub（> 200 char, 含 IRON RULES）", async () => {

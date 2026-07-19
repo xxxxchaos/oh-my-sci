@@ -21,6 +21,8 @@ import {
   buildAgentModelPlan,
   formatAgentModelPlan,
 } from "./model-config";
+import { writeInstallManifest } from './install-manifest';
+import { writeRuntimePlugin } from './runtime-plugin';
 
 // ====== 校验常量 ======
 
@@ -195,9 +197,11 @@ export async function install(
   const opencodeDir = path.join(projectDir, ".opencode");
   const commandsDir = path.join(opencodeDir, "commands");
   const agentsDir = path.join(opencodeDir, "agents");
+  const pluginsDir = path.join(opencodeDir, "plugins");
 
   fs.mkdirSync(commandsDir, { recursive: true });
   fs.mkdirSync(agentsDir, { recursive: true });
+  fs.mkdirSync(pluginsDir, { recursive: true });
 
   // 从包根目录 .opencode/ 递归复制 agent 和 command 文件
   function copyDir(src: string, dest: string): void {
@@ -221,11 +225,15 @@ export async function install(
   }
 
   applyAgentModelPlan(agentsDir, config);
+  await writeRuntimePlugin(projectDir);
+  writeInstallManifest(projectDir);
 
-  // ====== 写入 opencode.json（OpenCode 注册）======
+  // ====== 清理旧版 npm 插件声明（本地 bundle 由 .opencode/plugins 自动加载）======
   const opencodeJsonPath = path.join(projectDir, "opencode.json");
-  const opencodeJsonContent = JSON.stringify(mergeOpencodeConfig(opencodeJsonPath), null, 2) + "\n";
-  await Bun.write(opencodeJsonPath, opencodeJsonContent);
+  if (fsSync.existsSync(opencodeJsonPath)) {
+    const opencodeJsonContent = JSON.stringify(mergeOpencodeConfig(opencodeJsonPath), null, 2) + "\n";
+    await Bun.write(opencodeJsonPath, opencodeJsonContent);
+  }
 
   return configPath;
 }
@@ -241,11 +249,18 @@ function mergeOpencodeConfig(opencodeJsonPath: string): Record<string, unknown> 
     }
   }
 
-  const plugins = Array.isArray(existing.plugin) ? existing.plugin : [];
-  return {
+  const plugins = Array.isArray(existing.plugin)
+    ? existing.plugin.filter(plugin => plugin !== 'omo-sci')
+    : [];
+  const merged: Record<string, unknown> = {
     ...existing,
-    plugin: Array.from(new Set([...plugins, "omo-sci"])),
+    $schema: typeof existing.$schema === 'string'
+      ? existing.$schema
+      : 'https://opencode.ai/config.json',
   };
+  if (plugins.length > 0) merged.plugin = Array.from(new Set(plugins));
+  else delete merged.plugin;
+  return merged;
 }
 
 export function getInstallModelPlan(
@@ -267,8 +282,6 @@ function generateConfigJsonc(config: OmoSciConfig): string {
   // 构建完整的数据对象，附带额外字段用于信息展示
   const fullConfig: Record<string, unknown> = {
     ...config,
-    $schema: "https://opencode.ai/config.json",
-    plugin: ["omo-sci"],
   };
 
   // 序列化为漂亮 JSON
@@ -290,11 +303,6 @@ function generateConfigJsonc(config: OmoSciConfig): string {
     { key: '"safety"', comment: "安全机制配置——熔断器和循环检测" },
     { key: '"usage"', comment: "用量监控——月配额和当前使用量" },
     { key: '"environment"', comment: "环境就绪检查——PubMed MCP 为必需；CNKI / Consensus 等为可选增强" },
-    {
-      key: '"plugin"',
-      comment:
-        "OpenCode 原生集成——命令文件在 .opencode/commands/, agent 文件在 .opencode/agents/",
-    },
   ];
 
   for (; i < lines.length - 1; i++) {

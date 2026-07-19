@@ -7,6 +7,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { OPENCODE_CONFIG_DIR, OMO_SCI_PROFILE_DIR } from "./constants";
+import { RUNTIME_PLUGIN_FILE } from './runtime-plugin';
 
 export const OMO_SCI_AGENT_FILES = [
   "archimedes.md",
@@ -21,6 +22,7 @@ export const OMO_SCI_AGENT_FILES = [
 ] as const;
 
 export const OMO_SCI_COMMAND_FILES = [
+  "sci-agent.md",
   "sci-doctor.md",
   "sci-start.md",
   "sci-status.md",
@@ -42,6 +44,7 @@ export interface UninstallPlan {
   opencodeJsonPath: string;
   agentsDir: string;
   commandsDir: string;
+  pluginsDir: string;
   profileDir: string;
   filesToRemove: string[];
   dirsToRemoveIfEmpty: string[];
@@ -63,6 +66,7 @@ export function getUninstallPlan(options: UninstallOptions = {}): UninstallPlan 
   const opencodeJsonPath = path.join(projectDir, "opencode.json");
   const agentsDir = path.join(projectDir, ".opencode", "agents");
   const commandsDir = path.join(projectDir, ".opencode", "commands");
+  const pluginsDir = path.join(projectDir, ".opencode", "plugins");
   const profileDir = OMO_SCI_PROFILE_DIR;
   const filesToRemove: string[] = [];
   const dirsToRemoveIfEmpty: string[] = [];
@@ -73,13 +77,15 @@ export function getUninstallPlan(options: UninstallOptions = {}): UninstallPlan 
   }
 
   if (!options.keepProject) {
+    filesToRemove.push(path.join(projectDir, ".opencode", "omo-sci-install.json"));
+    filesToRemove.push(path.join(pluginsDir, RUNTIME_PLUGIN_FILE));
     for (const file of OMO_SCI_AGENT_FILES) {
       filesToRemove.push(path.join(agentsDir, file));
     }
     for (const file of OMO_SCI_COMMAND_FILES) {
       filesToRemove.push(path.join(commandsDir, file));
     }
-    dirsToRemoveIfEmpty.push(agentsDir, commandsDir, path.join(projectDir, ".opencode"));
+    dirsToRemoveIfEmpty.push(agentsDir, commandsDir, pluginsDir, path.join(projectDir, ".opencode"));
   }
 
   if (options.removeProfile) {
@@ -96,6 +102,7 @@ export function getUninstallPlan(options: UninstallOptions = {}): UninstallPlan 
     opencodeJsonPath,
     agentsDir,
     commandsDir,
+    pluginsDir,
     profileDir,
     filesToRemove,
     dirsToRemoveIfEmpty,

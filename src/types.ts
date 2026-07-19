@@ -117,6 +117,7 @@ export interface GateReport {
   modes: Record<string, GateModeStatus>;
   overrides: GateOverride[];
   report_path: string;
+  report_checksum?: string;
 }
 
 /** 主张-证据映射 */

@@ -14,8 +14,8 @@ export type AgentMode = 'primary' | 'subagent';
 
 export interface AgentPermissions {
   read: 'allow';
-  edit?: 'allow' | 'ask';
-  bash?: 'allow';
+  edit?: 'allow' | 'ask' | 'deny';
+  bash?: 'allow' | 'ask' | 'deny';
   glob?: 'allow';
   grep?: 'allow';
 }
@@ -57,9 +57,9 @@ export const AGENT_REGISTRY: Record<AgentName, AgentDefinition> = {
     displayName: 'IRBer (计划审查员)',
     mode: 'subagent',
     category: 'agent-orchestration',
-    description: '计划审查员。方案质量审查、FINER评分、伦理风险预审、阻塞项标记。只读。',
+    description: '计划审查员。方案质量审查、FINER评分、伦理风险预审、阻塞项标记；只写审查报告。',
     modelChain: ['qwen3.7-max', 'glm-5.2', 'deepseek-v4-pro', 'kimi-k2.6'],
-    permissions: { read: 'allow' },
+    permissions: { read: 'allow', edit: 'allow', bash: 'deny' },
   },
   pubmeder: {
     name: 'pubmeder',
@@ -102,18 +102,18 @@ export const AGENT_REGISTRY: Record<AgentName, AgentDefinition> = {
     displayName: 'EBMer (方法学审稿人)',
     mode: 'subagent',
     category: 'methodical-review',
-    description: '方法学审稿人。Sprint Contract两阶段盲审、12模式临床失败检查、数据一致性验证。只读。',
+    description: '方法学审稿人。两阶段盲审、12模式临床失败检查、数据一致性验证；只写审查报告。',
     modelChain: ['glm-5.2', 'qwen3.7-max', 'deepseek-v4-pro', 'kimi-k2.6'],
-    permissions: { read: 'allow' },
+    permissions: { read: 'allow', edit: 'allow', bash: 'deny' },
   },
   polisher: {
     name: 'polisher',
     displayName: 'Polisher (逻辑审稿人)',
     mode: 'subagent',
     category: 'chinese-writing',
-    description: '逻辑审稿人。逻辑链连贯性检查、去AI味扫描、语言质量审查。只读。',
+    description: '逻辑审稿人。逻辑链连贯性检查、去AI味扫描、语言质量审查；只写审查报告。',
     modelChain: ['glm-5.2', 'qwen3.7-plus', 'kimi-k2.6', 'qwen3.7-max'],
-    permissions: { read: 'allow' },
+    permissions: { read: 'allow', edit: 'allow', bash: 'deny' },
   },
 };
 

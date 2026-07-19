@@ -279,6 +279,16 @@ describe('MaterialPassport 状态系统', () => {
   // ──────────────────────────────────────────────────────────
 
   describe('computeStageHash', () => {
+    it('已有 hash 字段不参与下一次哈希计算', () => {
+      const stage: Parameters<typeof computeStageHash>[0] = {
+        status: 'completed',
+        artifacts: [{ path: 'test.md', checksum: 'abc123' }],
+        gates: {},
+      };
+      const first = computeStageHash(stage);
+      expect(computeStageHash({ ...stage, hash: first })).toBe(first);
+    });
+
     it('返回 64 字符的十六进制字符串', () => {
       const hash = computeStageHash({
         status: 'completed',
@@ -422,6 +432,21 @@ describe('MaterialPassport 状态系统', () => {
       const result = validatePassportSchema(data);
       expect(result.valid).toBe(false);
       expect(result.errors).toContain('signoff_records must be an array');
+    });
+
+    it('拒绝手工写入的畸形签核记录', () => {
+      const data = JSON.parse(JSON.stringify(DEFAULT_PASSPORT));
+      data.signoff_records = [{
+        stage: 'stage-0-intake',
+        completed_at: '2026-07-19T00:00:00.000Z',
+        summary: '绕过工具的记录',
+        risks_acknowledged: '不是数组',
+        user_confirmation: '确认',
+      }];
+      const result = validatePassportSchema(data);
+      expect(result.valid).toBe(false);
+      expect(result.errors.join('\n')).toContain('signed_at');
+      expect(result.errors.join('\n')).toContain('risks_acknowledged');
     });
 
     // ── 增强校验：data_provenance ──

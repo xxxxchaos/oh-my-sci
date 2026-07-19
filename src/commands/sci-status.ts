@@ -8,11 +8,13 @@
 import { loadPassport } from "../state/passport";
 import { loadBoulder } from "../state/boulder";
 import type { MaterialPassport, BoulderState } from "../types";
+import { findEffectiveInstall, OMO_SCI_VERSION, type EffectiveInstall } from '../install-manifest';
 
 export interface ProjectStatus {
   passport: MaterialPassport;
   boulder: BoulderState | null;
   projectDir: string;
+  install: EffectiveInstall | null;
 }
 
 /**
@@ -24,7 +26,7 @@ export function getProjectStatus(projectDir?: string): ProjectStatus {
   const dir = projectDir ?? process.cwd();
   const passport = loadPassport(dir);
   const boulder = loadBoulder(dir);
-  return { passport, boulder, projectDir: dir };
+  return { passport, boulder, projectDir: dir, install: findEffectiveInstall(dir) };
 }
 
 /**
@@ -40,6 +42,8 @@ export function formatProjectStatus(status: ProjectStatus): string {
     `  Layout: ${status.passport.project.layout}`,
     `  当前阶段: ${status.passport.pipeline.current_stage}`,
     `  数据标签: ${status.passport.data_provenance}`,
+    `  CLI 版本: ${OMO_SCI_VERSION}`,
+    `  模板来源: ${formatInstallSource(status.install)}`,
     `  阶段 0（意图访谈）: ${status.passport.stage_0_intake.status}`,
     `  阶段 1（研究设计）: ${status.passport.stage_1_design.status}`,
     `  阶段 2（数据分析）: ${status.passport.stage_2_analysis.status}`,
@@ -63,4 +67,11 @@ export function formatProjectStatus(status: ProjectStatus): string {
   }
 
   return lines.join("\n");
+}
+
+function formatInstallSource(install: EffectiveInstall | null): string {
+  if (!install) return '未找到（请运行 omo-sci install）';
+  const source = install.inherited ? '继承' : '本地';
+  const version = install.manifest?.package_version ?? '旧版/未知版本';
+  return `${source} ${install.root}（${version}）`;
 }

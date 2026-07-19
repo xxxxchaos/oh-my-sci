@@ -1,10 +1,22 @@
 # OpenCode 集成契约
 
-> 最后更新: 2026-07-07
-> 来源: 本机已安装 OpenCode CLI（v1.17.13）的 `@opencode-ai/plugin`/`@opencode-ai/sdk` 类型定义（`npm view` 已确认发布在公共 npm registry，latest 1.17.14）+ 2026-06-16 版 https://opencode.ai/docs/plugins/ 等文档
-> 状态: 2026-06-16 的部分结论已过时，见下方「2026-07-07 更新」章节
+> 最后更新: 2026-07-19
+> 来源: 本机 OpenCode 1.18.3 真实 TUI 验收、`@opencode-ai/plugin`/`@opencode-ai/sdk` 类型定义，以及 https://opencode.ai/docs/plugins/
+> 状态: 当前安装契约已在真实 OpenCode 会话验证；历史 npm 包名方案仅保留作机制说明
 
 ## 插件加载机制
+
+### 项目本地插件（omo-sci 当前方案）
+
+OpenCode 启动时会自动扫描项目 `.opencode/plugins/` 和用户级 `~/.config/opencode/plugins/`。这里的 JavaScript/TypeScript 模块不需要写入 `opencode.json` 的 `plugin` 数组。
+
+`omo-sci install` 会用 Bun 把 `src/runtime-entry.ts` 及依赖打成自包含 ESM，并写到：
+
+```text
+.opencode/plugins/omo-sci.js
+```
+
+这样 CLI 可以通过 GitHub 或 Bun 全局链接安装，OpenCode runtime 仍能从项目目录确定性加载同版本插件。安装或升级后必须重启已打开的 OpenCode 会话。
 
 ### npm 包作为插件
 
@@ -19,6 +31,8 @@ OpenCode 通过 `opencode.json` 中的 `plugin` 数组声明的 npm 包名加载
 - OpenCode 在启动时自动用 Bun 安装 npm 插件，依赖缓存到 `~/.cache/opencode/node_modules/`
 - 支持 scoped 包（`@scope/package`）和本地路径
 - 插件是 **JavaScript/TypeScript 模块**，默认入口由 Node.js 模块解析决定（`package.json#main` 或 `#exports`）
+
+**真实验收发现**：`bun install -g .` 或 `bun install -g github:...` 只保证终端里存在全局 CLI，不保证包已进入 OpenCode 自己的 npm 插件缓存。因此 `plugin: ["omo-sci"]` 在 GitHub beta / Bun 全局安装场景会出现“命令和 agent 存在，但自定义 Passport 工具缺失”的半安装状态。omo-sci 不再使用这种注册方式；安装器会清理旧声明。
 
 ### 插件入口导出
 
@@ -135,24 +149,13 @@ OpenCode 需要以下三个要素才能识别 omo-sci：
 
 | 要素 | 注册方式 | 文件 |
 |---|---|---|
-| 插件 (plugin) | `opencode.json` 中 `plugin: ["omo-sci"]` | 项目根目录 `opencode.json` |
+| 插件 (plugin) | 项目本地自包含 ESM，OpenCode 自动扫描 | `.opencode/plugins/omo-sci.js` |
 | 命令 (command) | `.opencode/commands/*.md` 文件声明 | `sci-doctor.md`, `sci-status.md` |
 | Agent | `.opencode/agents/*.md` 文件声明 | `dubin.md` |
 
-### `opencode.json` 写入策略
+### `opencode.json` 兼容策略
 
-`omo-sci install` 会在项目根目录写入 `opencode.json`：
-
-```json
-{
-  "plugin": ["omo-sci"]
-}
-```
-
-**注意事项**：
-- 全局 `~/.config/opencode/opencode.json` 同样可以注册插件，但本项目优先使用项目级配置
-
-> **P2-6 已修复（2026-07-07 复核确认）**：本节此前记录"`install()` 直接写入会覆盖已有配置"的风险。复核 `src/install.ts` 的 `mergeOpencodeConfig()` 发现该函数已经会读取已有 `opencode.json`、保留其余字段、把 `plugin` 数组去重合并后再写入——这个风险已经不存在，只是文档没有同步更新。
+新项目不需要为 omo-sci 创建 `opencode.json`。如果项目已有该文件，安装器只移除旧版 `plugin` 数组里的 `omo-sci`，保留 MCP、主题、其他插件和其余字段；卸载器也执行同样的兼容清理。
 
 ### 验证命令
 
@@ -163,31 +166,30 @@ OpenCode 需要以下三个要素才能识别 omo-sci：
 opencode agent list | rg dubin
 # 预期输出: dubin (primary) 或类似行
 
-# 验证本地插件代码是否可被 OpenCode 加载
+# 验证安装清单和运行时 bundle 版本
+omo-sci doctor
+# 预期：模板、CLI 与 OpenCode 运行时插件版本一致
+
+# 验证本地插件代码是否被 OpenCode 真实加载
 # 在 OpenCode TUI 中输入以下命令并确认输出：
 #   /sci-doctor           — 验证 sci-doctor 工具是否注册
 #   /sci-status           — 验证 sci-status 命令是否生效
 #   /@dubin <你的问题>    — 验证 dubin agent 是否可被调用
-#
-# 验证 Passport 强制工具（2026-07-07 新增，尚未做过）：
-#   /sci-start 走一遍到阶段 0 完成，观察 Dubin 是否真的调用了
-#   passport-advance-stage 而不是自己改 passport.json；
-#   故意在 passport.json 里把 stage_0_intake.status 改回 pending，
-#   再让 Dubin 尝试推进阶段，确认工具调用报错、AI 能看到错误信息
-#   并如实告诉用户，而不是假装成功。
-#
-# 注意: TUI 验收是本地环境依赖的步骤，当前 CI 中无法自动覆盖。
+#   要求 Dubin 调用 passport-status，界面应出现同名自定义工具
+#   明确签核 Stage 0 后，应出现 passport-advance-stage
+#   要求直接 edit .omo-sci/passport.json，应被运行时 hook 拒绝
 ```
 
 > **注意**: `opencode command list` 子命令在当前 OpenCode CLI 中不可用，使用 TUI 中的 `/` 命令执行作为替代验收方式。
 
+以上 Passport 三项已于 2026-07-19 在 OpenCode 1.18.3 真实会话通过；日志确认调用的是自定义工具而非 Bash 同名字符串，直接 edit 的错误也成功传回模型。
+
 ### 已知限制
 
-- OpenCode runtime 对 `opencode.json` 中 `plugin` 数组的加载机制依赖 npm 包名解析，需要 `omo-sci` 包在 npm 上可访问，或通过本地路径加载
-- 当前未在 OpenCode runtime 中完全验证插件加载 + tool 注册 + agent 识别的端到端流程
+- 运行时 bundle 是安装时快照；CLI、agent 或插件代码升级后必须重新运行 `omo-sci install` 并重启 OpenCode
 - 命令通过 `.opencode/commands/*.md` 文件声明，需要 OpenCode 在启动时扫描这些文件
-- plugin tool 已改用官方 `tool()` helper（见 `src/plugin-tools.ts`），typecheck 和单元测试通过；但和 2026-06-16 时一样，**尚未在真实 OpenCode TUI 会话里验证 `passport-advance-stage`/`passport-record-gate` 被 AI 实际调用、报错能正确传导给 AI**。这是本地环境依赖的步骤，CI 中无法自动覆盖，需要人工在 OpenCode TUI 里跑一遍 `/sci-start` 流程验收
-- `tool.execute.before` 里 throw 能否直接拒绝内置工具（bash/edit/write）调用，未经证实（见上文「已确认的运行时事件」表格）。当前 Passport 强制工具走的是"注册全新自定义工具，内部逻辑 throw"这条已确认可行的路径，没有依赖这个未证实的假设
+- `tool.execute.before` 中 throw 拒绝 edit/write/bash 直接操作 Passport 已在真实 TUI 验证；它是防绕过的补充，自定义 `passport-*` 工具自身仍负责 schema、前置条件和原子写入
+- TUI 的模型行为和 MCP 结果具有非确定性，不能由单元测试替代；长期验收规则见 `docs/testing/real-tui-acceptance.md`
 
 ## 自定义命令
 
@@ -296,22 +298,25 @@ permission:
 - **Primary agents**：Tab 键循环切换
 - **Subagents**：`@` 提及自动调用
 
-## Passport 强制工具（2026-07-07，第一个"通电"实现）
+## Passport 强制工具
 
-在 `src/plugin-tools.ts` 里用官方 `tool()` helper 注册了三个工具，把 Material Passport 的阶段推进/闸门检查从"提示词约定"升级为"工具调用强制"：
+在 `src/plugin-tools.ts` 里用官方 `tool()` helper 注册 Passport 工具，把阶段推进、产物、主张、经验和闸门记录从"提示词约定"升级为"工具调用强制"：
 
 | 工具 | 作用 | 强制点 |
 |---|---|---|
 | `passport-status` | 只读，返回当前阶段/闸门/数据溯源标签摘要 | 无（只读） |
 | `passport-advance-stage` | 把 passport 推进到目标阶段 | 内部调用 `validatePassportPreconditions()`（`src/state/passport.ts` 已有且已测试的纯函数），前置条件不满足直接 `throw`，OpenCode 会把这次工具调用标记为失败 |
 | `passport-record-gate` | 记录闸门 I/II 检查结果 | 同上，额外校验进入该闸门的前置条件（如闸门 I 要求阶段 2 已完成） |
+| `passport-record-claim` | 记录主张/引用核验状态 | Gate 通过前拒绝空记录以及 `missing`/`conflict` |
+| `passport-record-artifact` | 登记真实产物及 SHA-256 | 拒绝缺失、空文件、越界路径和登记后被修改的文件 |
+| `passport-record-wisdom` | 记录跨会话经验 | 统一写入结构化 `wisdom_collected` |
 
 设计要点：
 - `throw` 在自定义工具的 `execute()` 里必定导致调用失败——这是标准 tool-calling 框架的基本契约，不依赖上面「已知限制」里提到的、尚未证实的 `tool.execute.before` 拦截语义
 - `passportAdvanceStage` 有一个时序细节：目标阶段的前置条件（如"上一阶段已完成"）在这次调用之前必然不成立，因为"完成当前阶段"和"推进"是同一次调用要做的两件事。解决方式是先在内存里构造一份"当前阶段已标记完成"的候选 passport，据此校验目标阶段的前置条件，通过后才真正持久化——这样既不会误拒正常的逐阶段推进，也不会放行跳级（因为只有 `current_stage` 被标记完成，中间被跳过的阶段仍是 `pending`）
-- Dubin/EBMer 的提示词已更新为要求调用这些工具而不是直接改 `passport.json`（见 `src/agents/dubin.ts`「Passport 工具」小节、`src/agents/ebmer.ts`「记录闸门结果」小节）
+- 所有写工具先验证 Passport schema；Dubin/EBMer 的提示词要求使用专用工具，运行时 hook 进一步阻止 edit/write/bash 绕过工具直接改 JSON
 
-**尚未验收**：真实 OpenCode TUI 会话里，AI 是否会按提示词要求实际调用这些工具、调用失败时错误信息能否完整传给 AI。这需要人工在 OpenCode TUI 跑一遍 `/sci-start` 完整流程验证。
+2026-07-19 真实 TUI 已验证 `passport-status`、`passport-advance-stage` 的注册与执行，以及直接 edit Passport 的拒绝和错误传递。Gate/claim/artifact 仍由单元测试覆盖，需随以后阶段 2-3 的 L3 验收继续观察模型是否主动正确调用。
 
 ## 冻结的集成形态（基于 Phase 0 验证，工具注册部分已被上一节取代）
 
@@ -330,6 +335,9 @@ export const OmoSciPlugin: Plugin = async () => {
       'passport-status': passportStatus,
       'passport-advance-stage': passportAdvanceStage,
       'passport-record-gate': passportRecordGate,
+      'passport-record-claim': passportRecordClaim,
+      'passport-record-artifact': passportRecordArtifact,
+      'passport-record-wisdom': passportRecordWisdom,
     },
   };
 };
@@ -368,16 +376,17 @@ export const OmoSciPlugin: Plugin = async () => {
 ### 集成总结
 
 ```
-omo-sci (npm 包)
-  ├── src/index.ts              ← 导出 OmoSciPlugin 函数
-  ├── bin/omo-sci.ts            ← CLI 二进制入口
-  ├── .opencode/commands/       ← 命令 Markdown 文件
-  │   └── sci-doctor.md
-  └── .opencode/agents/         ← Agent Markdown 文件
-      └── dubin.md
+omo-sci 安装包
+  ├── src/index.ts                    ← 导出 OmoSciPlugin
+  ├── src/runtime-entry.ts            ← bundle 单一入口
+  ├── bin/omo-sci.ts                  ← CLI
+  └── .opencode/{commands,agents}/    ← 模板源
 
-opencode.json 中配置:
-  { "plugin": ["omo-sci"] }
+安装后的研究项目
+  └── .opencode/
+      ├── plugins/omo-sci.js          ← OpenCode 实际加载的自包含运行时
+      ├── commands/*.md
+      └── agents/*.md
 ```
 
 插件本身只提供运行时能力和自定义工具。命令和 agent 的声明存在于 OpenCode 配置层，是项目级别的。

@@ -47,6 +47,8 @@ cd ~/my-research-project
 omo-sci install
 ```
 
+安装会把 agent、斜杠命令和运行时插件写入当前项目的 `.opencode/`。如果这个项目的 OpenCode 已经打开，请安装完成后重启一次 OpenCode。
+
 **3. 启动 OpenCode，开始研究：**
 
 ```bash
@@ -173,7 +175,7 @@ omo-sci uninstall --yes    # 一键卸载
 omo-sci uninstall --dry-run # 只预览不删除
 ```
 
-卸载会删除 omo-sci 生成的 agent/command 文件和全局配置，保留你的研究数据和 Dubin 记忆。
+卸载会删除 omo-sci 生成的 agent、command、运行时插件和全局配置，保留你的研究数据和 Dubin 记忆。
 
 ---
 

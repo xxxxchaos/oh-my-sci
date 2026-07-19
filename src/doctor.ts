@@ -30,6 +30,7 @@ export interface DoctorOptions {
 /** 执行所有环境检查 */
 export async function runDoctor(options: DoctorOptions = {}): Promise<DoctorReport> {
   const checks: HealthCheck[] = [];
+  const projectDir = options.projectDir ?? process.cwd();
 
   // 1. Bun 版本检查
   checks.push(await checkBunVersion());
@@ -46,14 +47,17 @@ export async function runDoctor(options: DoctorOptions = {}): Promise<DoctorRepo
   // 5. 配置目录检查
   checks.push(await checkConfigDir());
 
-  // 6. R 可用性检查（可选）
+  // 6. 当前项目实际加载的 omo-sci 模板来源
+  checks.push(checkProjectInstall(projectDir));
+
+  // 7. R 可用性检查（可选）
   checks.push(await checkR());
 
-  // 7. 文献 MCP 配置声明（真实可用性需 OpenCode runtime 中验证）
+  // 8. 文献 MCP 配置声明（真实可用性需 OpenCode runtime 中验证）
   checks.push(...checkMcpDeclarations());
 
   if (options.includeModelChecks) {
-    checks.push(...checkAgentModels(options.projectDir ?? process.cwd()));
+    checks.push(...checkAgentModels(projectDir));
   }
 
   const ok = checks.filter((c) => c.status === "ok").length;
@@ -216,6 +220,58 @@ import { OMO_SCI_CONFIG_PATH, OPENCODE_CONFIG_DIR } from "./constants";
 import { loadConfig } from "./config";
 import { checkInstalledAgentModels } from "./model-config";
 import { checkModelVersions, formatModelVersionResults } from "./environment/model-version-check";
+import { findEffectiveInstall, OMO_SCI_VERSION } from './install-manifest';
+import { checkRuntimePlugin } from './runtime-plugin';
+
+export function checkProjectInstall(projectDir: string): HealthCheck {
+  const effective = findEffectiveInstall(projectDir);
+  if (!effective) {
+    return {
+      name: '项目安装',
+      status: 'warn',
+      message: `当前目录及父目录未发现 omo-sci 模板；请在项目目录运行 omo-sci install`,
+    };
+  }
+
+  const source = effective.inherited ? '继承父目录' : '当前目录本地安装';
+  if (!effective.manifest) {
+    return {
+      name: '项目安装',
+      status: 'warn',
+      message: `${source}: ${effective.root}；这是无版本清单的旧安装，请在该目录重新运行 omo-sci install`,
+    };
+  }
+
+  if (effective.manifest.package_version !== OMO_SCI_VERSION) {
+    return {
+      name: '项目安装',
+      status: 'warn',
+      message: `${source}: ${effective.root}；模板 ${effective.manifest.package_version} 与 CLI ${OMO_SCI_VERSION} 不一致，请更新安装`,
+    };
+  }
+
+  const runtime = checkRuntimePlugin(effective.root);
+  if (!runtime.exists) {
+    return {
+      name: '项目安装',
+      status: 'error',
+      message: `${source}: ${effective.root}；缺少 OpenCode 运行时插件 ${runtime.path}，CLI 可用但 Passport 工具不会注册。请在安装根目录重新运行 omo-sci install`,
+    };
+  }
+  if (!runtime.valid) {
+    return {
+      name: '项目安装',
+      status: 'error',
+      message: `${source}: ${effective.root}；运行时插件版本 ${runtime.version ?? '未知'} 与 CLI ${OMO_SCI_VERSION} 不一致，请重新运行 omo-sci install`,
+    };
+  }
+
+  return {
+    name: '项目安装',
+    status: 'ok',
+    message: `${source}: ${effective.root}；模板、CLI 与 OpenCode 运行时插件均为 ${OMO_SCI_VERSION}`,
+  };
+}
 
 /** 获取 omo-sci 配置目录 */
 export function getConfigDir(): string {
