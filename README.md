@@ -40,6 +40,28 @@ bun install -g github:xxxxchaos/oh-my-sci
 export PATH="$HOME/.bun/bin:$PATH"
 ```
 
+**如果你之前装过 omo-sci，再次运行上面这条命令做升级时**，可能会遇到 Bun 报错：
+
+```
+error: Package "omo-sci@github:xxxxchaos/oh-my-sci#..." has a dependency loop
+error: DependencyLoop
+```
+
+这是 Bun 自身在"原地升级"一个 GitHub 来源的全局包时的已知问题（[oven-sh/bun#5789](https://github.com/oven-sh/bun/issues/5789)），不是 omo-sci 的 bug——Bun 把新旧两个 git 版本混在一起解析，误判成了循环依赖。解法是先卸载旧版本再重装，而不是直接覆盖安装：
+
+```bash
+bun remove -g omo-sci
+bun pm cache rm
+bun install -g github:xxxxchaos/oh-my-sci
+```
+
+如果还是报同样的错，手动删掉残留目录后再装一次：
+
+```bash
+rm -rf ~/.bun/install/global/node_modules/omo-sci
+bun install -g github:xxxxchaos/oh-my-sci
+```
+
 **2. 进入你的研究项目目录，安装插件：**
 
 ```bash
