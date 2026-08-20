@@ -149,3 +149,23 @@ export function getAvailableModels(providerIds: ProviderId[]): ModelSpec[] {
 
 /** 从 PROVIDER_REGISTRY keys 派生的可用提供商列表 */
 export const PROVIDER_WHITELIST = Object.keys(PROVIDER_REGISTRY) as ProviderId[];
+
+/**
+ * 把用户输入的 provider 字符串规范化为内部 ProviderId。
+ *
+ * 用户在 `opencode auth login` 里看到的名字是 OpenCode 实际的 auth provider
+ * 名（如 "zhipuai-coding-plan"、"kimi-for-coding"），跟我们的内部简称
+ * （"zhipu"、"kimi"）不一样——真实发生过用户直接把 auth 名传给
+ * `omo-sci configure --providers` 导致报错的情况。这里接受两种写法：
+ * - 内部简称：原样返回
+ * - OpenCode auth provider 名：反查 PROVIDER_TO_AUTH_NAME 转回内部简称
+ * 两种都不匹配时原样返回，交给调用方的白名单校验给出报错提示。
+ */
+export function normalizeProviderId(input: string): string {
+  const trimmed = input.trim();
+  if (PROVIDER_WHITELIST.includes(trimmed as ProviderId)) return trimmed;
+  const matched = Object.entries(PROVIDER_TO_AUTH_NAME).find(
+    ([, authName]) => authName.toLowerCase() === trimmed.toLowerCase(),
+  );
+  return matched ? matched[0] : trimmed;
+}

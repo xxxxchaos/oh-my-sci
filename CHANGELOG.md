@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.2.3 (2026-08-20)
+
+修复实测反馈：`omo-sci configure --providers` 不接受 OpenCode 实际的 auth provider 名。
+
+用户在 `opencode auth login` 里看到并选择的 provider 名是 OpenCode 侧的真实名字（如 `zhipuai-coding-plan`、`kimi-for-coding`），跟 omo-sci 内部使用的简称（`zhipu`、`kimi`）不一样。用户很自然地直接把 auth 名传给 `--providers`，导致报错"不支持的提供商"。
+
+- `src/router/provider.ts` 新增 `normalizeProviderId()`：接受内部简称或 OpenCode auth provider 名两种写法，统一规范化为内部简称
+- `src/install.ts` 的 `generateConfig()` 在校验前先规范化，覆盖 CLI `--providers` 参数和交互式向导两条路径
+- `bin/omo-sci.ts` 的 `parseProviderSelection()`（交互式向导选择器）和 `parseInstallArgs()`（`--providers` 参数解析）同步接入规范化
+- 错误提示补充说明：也可以直接使用 `opencode auth login` 里显示的 provider 名
+- 新增回归测试复现用户的真实命令：`omo-sci configure --providers opencode-go,zhipuai-coding-plan,kimi-for-coding,deepseek`
+
+### 验证
+
+- `bun run typecheck` ✅、`bun test` 210/210 ✅
+
 ## v0.2.2 (2026-08-20)
 
 正式发布。累积此前几轮本地候选版（见下方 `v0.2.2-local.*` 历史条目）的运行时加固和真实 TUI 验收工作，加上本轮的模型矩阵更新和 Kimi 命名修复。

@@ -33,7 +33,7 @@ import {
   renderProviderPicker,
 } from "../src/commands/sci-agent";
 import type { ProviderId } from "../src/types";
-import { PROVIDER_WHITELIST } from "../src/router/provider";
+import { PROVIDER_WHITELIST, normalizeProviderId } from "../src/router/provider";
 import {
   formatUninstallPlan,
   formatUninstallResult,
@@ -603,7 +603,10 @@ function parseInstallArgs(
           providers = args[++i]
             .split(",")
             .map((s) => s.trim())
-            .filter(Boolean);
+            .filter(Boolean)
+            // 接受 OpenCode auth provider 名（如 "zhipuai-coding-plan"）
+            // 或内部简称（"zhipu"），统一规范化为内部简称
+            .map((s) => normalizeProviderId(s));
         }
         break;
       case "--quota":
@@ -722,13 +725,15 @@ function parseProviderSelection(input: string): string[] {
         const provider = PROVIDER_WHITELIST[Number(part) - 1];
         if (provider) return provider;
       }
-      return part;
+      // 用户可能直接输入 OpenCode auth provider 名（如 "zhipuai-coding-plan"），
+      // 而不是内部简称（"zhipu"）——两种写法都接受。
+      return normalizeProviderId(part);
     });
 
   const invalid = selected.filter(provider => !PROVIDER_WHITELIST.includes(provider as ProviderId));
   if (selected.length === 0 || invalid.length > 0) {
     console.error(`provider 无效: ${invalid.join(", ") || input}`);
-    console.error(`支持的 provider: ${PROVIDER_WHITELIST.join(", ")}`);
+    console.error(`支持的 provider: ${PROVIDER_WHITELIST.join(", ")}（也可以直接用 opencode auth login 里显示的 provider 名，如 "zhipuai-coding-plan"/"kimi-for-coding"）`);
     process.exit(1);
   }
   return selected;

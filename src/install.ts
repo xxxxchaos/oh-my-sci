@@ -14,7 +14,7 @@ import {
   REQUIRED_LITERATURE_MCPS,
 } from "./constants";
 import type { OmoSciConfig, ProviderId, CapabilityCategory } from "./types";
-import { MODEL_HOME_PROVIDER, PROVIDER_WHITELIST, getAvailableModels } from "./router/provider";
+import { MODEL_HOME_PROVIDER, PROVIDER_WHITELIST, getAvailableModels, normalizeProviderId } from "./router/provider";
 import { DEFAULT_FALLBACK_ORDERS, DEFAULT_MODEL_DENYLIST } from "./router/categories";
 import {
   applyAgentModelPlan,
@@ -91,10 +91,15 @@ export function generateConfig(
     );
   }
 
+  // 用户可能直接传 OpenCode auth provider 名（如 "zhipuai-coding-plan"，
+  // 这是他们在 `opencode auth login` 里实际看到的名字），而不是我们的
+  // 内部简称（"zhipu"）——两种写法都接受，规范化后再校验。
+  providers = providers.map(provider => normalizeProviderId(provider) as ProviderId);
+
   for (const provider of providers) {
     if (!PROVIDER_WHITELIST.includes(provider)) {
       throw new Error(
-        `不支持的提供商: "${provider}"。支持的提供商列表: ${PROVIDER_WHITELIST.join(", ")}`,
+        `不支持的提供商: "${provider}"。支持的提供商列表: ${PROVIDER_WHITELIST.join(", ")}（也可以直接使用 opencode auth login 里显示的 provider 名，如 "zhipuai-coding-plan"/"kimi-for-coding"）`,
       );
     }
   }

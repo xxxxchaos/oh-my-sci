@@ -64,6 +64,21 @@ describe("generateConfig", () => {
     expect(() => generateConfig(["unknown" as ProviderId], 500000000, true)).toThrow("不支持的提供商");
   });
 
+  it("接受 OpenCode auth provider 名（用户在 opencode auth login 里看到的名字），自动规范化为内部简称", () => {
+    // 真实反馈：用户跑 `omo-sci configure --providers opencode-go,zhipuai-coding-plan,kimi-for-coding,deepseek`
+    // 之前会报"不支持的提供商: zhipuai-coding-plan"——这些是 OpenCode 的
+    // auth provider 名，不是我们的内部简称，但用户很自然会直接抄这个名字。
+    const config = generateConfig(
+      ["opencode-go", "zhipuai-coding-plan", "kimi-for-coding", "deepseek"] as ProviderId[],
+      500000000,
+      true,
+    );
+    const allModels = Object.values(config.router.categories).flatMap(c => c.fallback_chain);
+    expect(allModels.some(m => m.provider === "zhipu")).toBe(true);
+    expect(allModels.some(m => m.provider === "kimi")).toBe(true);
+    expect(allModels.some(m => m.provider === "deepseek")).toBe(true);
+  });
+
   it("无效 quota 抛错", () => {
     expect(() => generateConfig(["deepseek"], 123456, true)).toThrow("无效的 quota");
   });
