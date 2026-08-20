@@ -22,15 +22,29 @@ export const PROVIDER_TO_AUTH_NAME: Record<string, string> = {
 };
 
 /**
+ * 内部 provider → 内部 model_id（小写）→ 该 provider 对应 auth 服务下的真实 model_id。
+ *
+ * 只在 auth 服务的模型命名和我们的内部命名不一致时才需要在这里登记：
+ * - minimax-cn-coding-plan 把 minimax-m3 大小写成 MiniMax-M3
+ * - kimi-for-coding（套餐订阅）不是按"代号"命名模型，是按"档位"命名——
+ *   kimi-k2.7-code 对应它的 kimi-for-coding 标准档，kimi-k3 对应它的 k3 档。
+ *   kimi-k2.6 在这个套餐里没有对应档位，所以不登记在这里（也不出现在
+ *   PROVIDER_REGISTRY['kimi'] 的模型列表里，避免生成一个套餐里根本不存在的模型名）。
+ */
+const MODEL_ID_TO_AUTH_ID: Partial<Record<string, Record<string, string>>> = {
+  minimax: { 'minimax-m3': 'MiniMax-M3' },
+  kimi: { 'kimi-k2.7-code': 'kimi-for-coding', 'kimi-k3': 'k3' },
+};
+
+/**
  * 将内部 provider/model 键转为 OpenCode auth 实际键
  */
 export function toAuthModelKey(internalKey: string): string {
   const parts = internalKey.split('/');
   if (parts.length === 2) {
-    const authProvider = PROVIDER_TO_AUTH_NAME[parts[0]] ?? parts[0];
-    const authModel = parts[0] === 'minimax' && parts[1].toLowerCase() === 'minimax-m3'
-      ? 'MiniMax-M3'
-      : parts[1];
+    const [provider, modelId] = parts;
+    const authProvider = PROVIDER_TO_AUTH_NAME[provider] ?? provider;
+    const authModel = MODEL_ID_TO_AUTH_ID[provider]?.[modelId.toLowerCase()] ?? modelId;
     return `${authProvider}/${authModel}`;
   }
   return internalKey;
@@ -61,21 +75,28 @@ export const PROVIDER_REGISTRY: Partial<Record<ProviderId, {
     ],
   },
   'qwen-bailian': {
-    name: '阿里百炼 (Qwen 3.7)',
+    name: '阿里百炼 (Qwen 3.7 / 3.8)',
     models: [
       { provider: 'qwen-bailian', model_id: 'qwen3.7-plus', context_window: 1_000_000, max_output: 128_000 },
       { provider: 'qwen-bailian', model_id: 'qwen3.7-max', context_window: 1_000_000, max_output: 128_000 },
+      { provider: 'qwen-bailian', model_id: 'qwen3.8-max', context_window: 1_000_000, max_output: 128_000 },
     ],
   },
   'zhipu': {
-    name: '智谱开放平台 (GLM-5.2)',
-    models: [{ provider: 'zhipu', model_id: 'glm-5.2', context_window: 1_000_000, max_output: 128_000 }],
+    name: '智谱开放平台 (GLM-5.2 / 5.3)',
+    models: [
+      { provider: 'zhipu', model_id: 'glm-5.2', context_window: 1_000_000, max_output: 128_000 },
+      { provider: 'zhipu', model_id: 'glm-5.3', context_window: 1_000_000, max_output: 128_000 },
+    ],
   },
   'kimi': {
-    name: 'Kimi 开放平台',
+    // 实际路由到 Kimi For Coding 套餐订阅（见 PROVIDER_TO_AUTH_NAME），
+    // 不是官方按量计费的开放平台——这个套餐只提供 K2.7 Code 和 K3 两档，
+    // 没有独立的 K2.6 档位，所以这里不登记 kimi-k2.6（想用 K2.6 走 opencode-go）。
+    name: 'Kimi 编程套餐 (Kimi For Coding)',
     models: [
-      { provider: 'kimi', model_id: 'kimi-k2.6', context_window: 256_000, max_output: 128_000 },
-      { provider: 'kimi', model_id: 'kimi-k2.7-code', context_window: 256_000, max_output: 128_000 },
+      { provider: 'kimi', model_id: 'kimi-k2.7-code', context_window: 262_144, max_output: 32_768 },
+      { provider: 'kimi', model_id: 'kimi-k3', context_window: 1_048_576, max_output: 131_072 },
     ],
   },
   'minimax': {
@@ -91,11 +112,14 @@ export const PROVIDER_REGISTRY: Partial<Record<ProviderId, {
     models: [
       { provider: 'opencode-go', model_id: 'qwen3.7-max', context_window: 1_000_000, max_output: 128_000 },
       { provider: 'opencode-go', model_id: 'qwen3.7-plus', context_window: 1_000_000, max_output: 128_000 },
+      { provider: 'opencode-go', model_id: 'qwen3.8-max', context_window: 1_000_000, max_output: 128_000 },
       { provider: 'opencode-go', model_id: 'deepseek-v4-pro', context_window: 1_000_000, max_output: 128_000 },
       { provider: 'opencode-go', model_id: 'glm-5.1', context_window: 1_000_000, max_output: 128_000 },
       { provider: 'opencode-go', model_id: 'glm-5.2', context_window: 1_000_000, max_output: 128_000 },
+      { provider: 'opencode-go', model_id: 'glm-5.3', context_window: 1_000_000, max_output: 128_000 },
       { provider: 'opencode-go', model_id: 'kimi-k2.6', context_window: 256_000, max_output: 128_000 },
       { provider: 'opencode-go', model_id: 'kimi-k2.7-code', context_window: 256_000, max_output: 128_000 },
+      { provider: 'opencode-go', model_id: 'kimi-k3', context_window: 1_048_576, max_output: 131_072 },
       { provider: 'opencode-go', model_id: 'minimax-m3', context_window: 1_000_000, max_output: 128_000 },
       { provider: 'opencode-go', model_id: 'deepseek-v4-flash', context_window: 1_000_000, max_output: 128_000 },
     ],
@@ -105,12 +129,16 @@ export const PROVIDER_REGISTRY: Partial<Record<ProviderId, {
 export const MODEL_HOME_PROVIDER: Record<string, ProviderId> = {
   'qwen3.7-plus': 'qwen-bailian',
   'qwen3.7-max': 'qwen-bailian',
+  'qwen3.8-max': 'qwen-bailian',
   'deepseek-v4-pro': 'deepseek',
   'deepseek-v4-flash': 'deepseek',
   'glm-5.2': 'zhipu',
   'glm-5.1': 'zhipu',
-  'kimi-k2.6': 'kimi',
+  'glm-5.3': 'zhipu',
+  // kimi-k2.6 没有单独登记 home provider：'kimi' 套餐订阅不提供这一档，
+  // 只能通过 opencode-go 使用，走 opencode-go 的默认排序即可。
   'kimi-k2.7-code': 'kimi',
+  'kimi-k3': 'kimi',
   'minimax-m3': 'minimax',
   'hy3': 'tencent-hy',
 };

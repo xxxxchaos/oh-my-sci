@@ -21,6 +21,16 @@ export const LATEST_MODEL_VERSIONS: Record<string, { latest: string; released: s
     categories: ['agent-orchestration'],
   },
   'kimi-k2.7-code': { latest: 'kimi-k2.6', released: '2026-04-21', note: 'K2.7 是纯编程模型，非编程任务应使用 K2.6。' },
+  'glm-5.2': {
+    latest: 'glm-5.3',
+    released: '2026-08-14',
+    note: 'GLM-5.3 已发布（SWE-bench 编码能力进一步提升）。5.2 仍可正常使用，本条仅提示新版本存在，是否切换按需评估。',
+  },
+  'kimi-k2.6': {
+    latest: 'kimi-k3',
+    released: '2026-07-16',
+    note: 'Kimi K3 已发布（多模态/视觉理解能力提升）。K2.6 仍可正常使用，本条仅提示新版本存在，是否切换按需评估。',
+  },
   // 无更高级版本的模型不在此列表中
 };
 

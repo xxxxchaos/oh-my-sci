@@ -1,5 +1,30 @@
 # Changelog
 
+## v0.2.2-local.202608201700 (2026-08-20)
+
+模型矩阵更新（2026-08 国产模型密集发布：Kimi K3、GLM-5.3、Qwen 3.8-Max、DeepSeek V4 正式版）+ 修复一个独立的、更早就存在的 Kimi 套餐订阅命名不匹配 bug。本版本是紧急修复，尚未 push 或发布 Release；不含另一批仍标注"待复测"的提示词精修 WIP。
+
+### 新模型接入
+
+- 核实方式：直接读取本机 OpenCode 的模型目录缓存（`~/.cache/opencode/models.json`），不采信第三方博客文章里的具体模型 ID 字符串
+- DeepSeek V4 Pro/Flash 正式版：模型 ID 未变（`deepseek-v4-pro`/`deepseek-v4-flash`），仓库里原有配置已经是对的，不需要改
+- 新增：`qwen-bailian`/`opencode-go` 注册 `qwen3.8-max`；`zhipu`/`opencode-go` 注册 `glm-5.3`；`kimi`/`opencode-go` 注册 `kimi-k3`
+- 这些新增只是让模型"可被选用"（`omo-sci agent providers` 可见、`omo-sci agent set` 可切换），**不改变任何 agent 的默认推荐模型**——刚发布的模型缺乏实测评估，默认值维持不动
+- `doctor --models` 新增 GLM-5.2→5.3、Kimi K2.6→K3 的提示，仅供参考，不标记为"过期需升级"
+
+### 修复：Kimi 套餐订阅模型命名不匹配（独立 bug，可能早于本次模型发布就存在）
+
+排查用户反馈的运行时 404 报错时顺带发现：`kimi` provider 路由到的 `kimi-for-coding`（Kimi 编程套餐订阅）和官方按量计费的开放平台（`moonshotai-cn`）是两个不同产品，套餐订阅按"档位名"命名模型（`kimi-for-coding`/`k3`），不是按"代号"命名（`kimi-k2.6`/`kimi-k2.7-code`）。此前 `toAuthModelKey()` 把内部代号原样传给套餐 auth，套餐根本不认识这些模型名——任何真正走独立 `kimi` provider（而非 `opencode-go`）配置的用户，写入 agent 文件的 `kimi-for-coding/kimi-k2.7-code` 这类值实际上从未被套餐订阅正确识别过。
+
+- `src/router/provider.ts`：`toAuthModelKey()` 从内联的 minimax 特例改为通用的 `MODEL_ID_TO_AUTH_ID` 翻译表，新增 kimi 的翻译：`kimi-k2.7-code → kimi-for-coding`（套餐标准档），`kimi-k3 → k3`（套餐 K3 档）
+- `kimi-k2.6` 在套餐订阅里没有对应档位，从 `PROVIDER_REGISTRY['kimi']` 移除（想用 K2.6 请走 `opencode-go`，不受影响）；同步移除 `MODEL_HOME_PROVIDER` 里对应的过期条目
+- `PROVIDER_REGISTRY['kimi'].name` 从"Kimi 开放平台"改为"Kimi 编程套餐 (Kimi For Coding)"，避免显示名继续暗示这是按量计费的开放平台
+- 新增测试锁定翻译行为，以及 `canonicalModelKey`/`toAuthModelKey` 的往返一致性（`doctor --models` 依赖这条一致性才能正确识别真实安装后的 agent 文件，不会误报未知模型）
+
+### 验证
+
+- `bun run typecheck` ✅、`bun test` 209/209 ✅
+
 ## v0.2.2-local.202607192234 (2026-07-19)
 
 基于固定 VV-ECMO 案例完成首轮真实 OpenCode TUI Stage 0/Stage 1 验收。本版本仍是本地候选版，尚未 push 或发布 Release。
